@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vividstorm Screen Finder - Refactored</title>
+<style>
+:root{--bg:#0a0e27;--bg2:#1a1f3a;--gold:#d4af37;--muted:#a8a8b3;--text:#e8e8e8}
+body{margin:0;font-family:system-ui,Segoe UI,Arial;background:linear-gradient(135deg,var(--bg),var(--bg2));color:var(--text)}
+.container{max-width:980px;margin:0 auto;padding:24px}
+h1{margin:8px 0 0;font-size:40px}
+.subtitle{color:var(--muted)}
+.lang-switch{display:flex;gap:8px;justify-content:flex-end}
+.lang-btn,.option-card,.show-results-btn{border:1px solid rgba(212,175,55,.3);background:rgba(26,31,58,.8);color:var(--text);border-radius:12px;cursor:pointer}
+.lang-btn{padding:8px 12px}
+.lang-btn.active{background:linear-gradient(135deg,var(--gold),#8b1538)}
+.section{margin:24px 0}
+.section-title{font-size:24px;margin-bottom:12px}
+.options-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.option-card{padding:16px;text-align:left}
+.option-card.selected{outline:2px solid var(--gold);background:rgba(212,175,55,.18)}
+.input-field{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(212,175,55,.3);background:rgba(10,14,39,.65);color:var(--text)}
+.progress{height:8px;background:#0005;border-radius:999px;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),#ffd700,#8b1538);transition:.3s}
+.autocomplete{display:none;border:1px solid rgba(212,175,55,.3);background:#1a1f3a;max-height:220px;overflow:auto;border-radius:12px;margin-top:6px}
+.autocomplete.show{display:block}.autocomplete-item{padding:10px;cursor:pointer}.autocomplete-item:hover{background:#fff1}
+.show-results-btn{padding:14px 22px;font-weight:700}
+.result-section{display:none;margin-top:28px}.result-section.show{display:block}
+.result-card{border:1px solid rgba(212,175,55,.3);border-radius:12px;background:rgba(26,31,58,.8);padding:16px;margin:10px 0}
+.warning-box{border:1px solid #8b1538;background:#8b153833;border-radius:12px;padding:12px;margin-bottom:12px}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="lang-switch">
+    <button class="lang-btn active" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="cn">中文</button>
+    <button class="lang-btn" data-lang="jp">日本語</button>
+  </div>
+
+  <h1 data-i18n="title">Find Your Perfect Screen</h1>
+  <p class="subtitle" data-i18n="subtitle">Answer a few questions to get personalized recommendations</p>
+  <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="q1">Your Projector Type</div>
+    <small data-i18n="model_hint">Optional: Enter your projector model for auto-detection, or manually select below</small>
+    <input id="model-input" class="input-field" data-i18n-placeholder="model_placeholder" placeholder="Type your projector model..." autocomplete="off" />
+    <div id="autocomplete" class="autocomplete"></div>
+    <div class="options-grid" data-group="projector">
+      <button class="option-card" data-category="projector" data-value="ust"><b data-i18n="ust_title">Laser TV (UST)</b><div data-i18n="ust_desc">Ultra short throw</div></button>
+      <button class="option-card" data-category="projector" data-value="long"><b data-i18n="long_title">Standard Projector</b><div data-i18n="long_desc">Long throw</div></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="q2">Viewing Environment</div>
+    <div class="options-grid" data-group="environment">
+      <button class="option-card" data-category="environment" data-value="light"><b data-i18n="light_title">Bright Room</b><div data-i18n="light_desc">Daytime use</div></button>
+      <button class="option-card" data-category="environment" data-value="dark"><b data-i18n="dark_title">Dark Room</b><div data-i18n="dark_desc">Cinema setup</div></button>
+      <button class="option-card" data-category="environment" data-value="outdoor"><b data-i18n="outdoor_title">Outdoor</b><div data-i18n="outdoor_desc">Weatherproof</div></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="q3">Installation Style</div>
+    <div class="options-grid" data-group="installation">
+      <button class="option-card" data-category="installation" data-value="floor"><b data-i18n="floor_title">Floor Rising</b></button>
+      <button class="option-card" data-category="installation" data-value="drop"><b data-i18n="drop_title">Drop Down</b></button>
+      <button class="option-card" data-category="installation" data-value="ceiling"><b data-i18n="ceiling_title">In-Ceiling</b></button>
+      <button class="option-card" data-category="installation" data-value="frame"><b data-i18n="frame_title">Fixed Frame</b></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="q4">Final Configuration</div>
+    <div class="options-grid" data-group="audio">
+      <button class="option-card" data-category="audio" data-value="visible"><b data-i18n="visible_title">Separate Speakers</b></button>
+      <button class="option-card" data-category="audio" data-value="hidden"><b data-i18n="hidden_title">Behind Screen</b></button>
+    </div>
+  </div>
+
+  <button class="show-results-btn" id="show-btn" data-i18n="show_results">Show Recommendations</button>
+
+  <div class="result-section" id="results">
+    <h2 data-i18n="results_title">Your Perfect Matches</h2>
+    <div id="result-list"></div>
+  </div>
+</div>
+
+<script>
+const state={projector:null,environment:null,installation:null,audio:null};
+let currentLang='en';
+
+const PRODUCT_CATALOG={
+  'S PRO':{url:'https://vividstormscreen.com/products/vividstorm-s-pro-motorized-tension-floor-rising-ust-alr-projector-screen',desc:{en:'Black Grid ALR with excellent ambient light rejection.',cn:'黑栅抗光技术，出色的环境光抑制。',jp:'ブラックグリッドALRで高い環境光抑制。'}},
+  'White Cinema Slimline':{url:'https://vividstormscreen.com/products/vividstorm-white-cinema-slimline-motorized-tension-projector-screen',desc:{en:'Motorized white screen for dark room cinema.',cn:'电动升降白幕，暗室影院首选。',jp:'電動昇降ホワイトスクリーン、暗室向け。'}},
+  'ALR Slimline':{url:'https://vividstormscreen.com/products/vividstorm-alr-slimline-motorized-tension-obsidian-long-throw-alr-projector-screen',desc:{en:'Motorized Obsidian long throw ALR for bright rooms.',cn:'电动升降黑钻长焦抗光，明亮房间首选。',jp:'電動昇降オブシディアン長焦点ALR。'}},
+  'DuraPlus Outdoor':{url:'https://vividstormscreen.com/products/vividstorm-duraplus-weatherproof-motorized-outdoor-projector-screen',desc:{en:'Weatherproof outdoor screen.',cn:'全天候防水户外幕布。',jp:'全天候防水アウトドアスクリーン。'}}
+};
+
+// 规则数据化
+const RECOMMENDATION_RULES=[
+  {
+    when:s=>s.environment==='outdoor',
+    products:[{id:'DuraPlus Outdoor',badge:'best'}]
+  },
+  {
+    when:s=>s.projector==='ust'&&s.environment==='light'&&s.installation==='floor',
+    products:[{id:'S PRO',badge:'best'}]
+  },
+  {
+    when:s=>s.projector==='long'&&s.environment==='light'&&s.installation==='drop',
+    products:[{id:'ALR Slimline',badge:'best'}]
+  },
+  {
+    when:s=>s.environment==='dark'&&s.installation==='drop',
+    products:[{id:'White Cinema Slimline',badge:'best'}]
+  }
+];
+
+const translations={
+  en:{title:'Find Your Perfect Screen',subtitle:'Answer a few questions to get personalized recommendations',q1:'Your Projector Type',q2:'Viewing Environment',q3:'Installation Style',q4:'Final Configuration',model_hint:'Optional: Enter your projector model for auto-detection, or manually select below',model_placeholder:'Type your projector model...',ust_title:'Laser TV (UST)',ust_desc:'Ultra short throw',long_title:'Standard Projector',long_desc:'Long throw',light_title:'Bright Room',light_desc:'Daytime use',dark_title:'Dark Room',dark_desc:'Cinema setup',outdoor_title:'Outdoor',outdoor_desc:'Weatherproof',floor_title:'Floor Rising',drop_title:'Drop Down',ceiling_title:'In-Ceiling',frame_title:'Fixed Frame',visible_title:'Separate Speakers',hidden_title:'Behind Screen',show_results:'Show Recommendations',results_title:'Your Perfect Matches',best:'Best Choice',complete_all:'Please answer all questions before viewing recommendations.',outdoor_warning:'⚠️ Important Notice',outdoor_warning_desc:'UST projectors are not suitable for outdoor use.',no_results:'No recommendations found for this configuration.'},
+  cn:{title:'找到您的完美幕布',subtitle:'回答几个问题，获得个性化推荐',q1:'您的投影机类型',q2:'观看环境',q3:'安装方式',q4:'最终配置',model_hint:'可选：输入您的投影机型号进行自动检测，或在下方手动选择',model_placeholder:'输入您的投影机型号...',ust_title:'激光电视 (UST)',ust_desc:'超短焦',long_title:'标准投影机',long_desc:'长焦',light_title:'明亮房间',light_desc:'日间使用',dark_title:'暗室',dark_desc:'影院设置',outdoor_title:'户外',outdoor_desc:'防水',floor_title:'地面升起',drop_title:'下拉式',ceiling_title:'嵌入式',frame_title:'固定框架',visible_title:'独立音箱',hidden_title:'幕后音箱',show_results:'查看推荐',results_title:'您的完美匹配',best:'最佳选择',complete_all:'请在查看推荐前回答所有问题。',outdoor_warning:'⚠️ 重要提示',outdoor_warning_desc:'UST 投影机不适合户外使用。',no_results:'当前配置没有匹配的推荐。'},
+  jp:{title:'最適なスクリーンを見つける',subtitle:'いくつかの質問に答えて推奨を取得',q1:'プロジェクタータイプ',q2:'視聴環境',q3:'設置スタイル',q4:'最終設定',model_hint:'オプション：プロジェクターモデルを入力して自動判定',model_placeholder:'プロジェクターモデルを入力...',ust_title:'レーザーTV（UST）',ust_desc:'超短焦点',long_title:'標準プロジェクター',long_desc:'長焦点',light_title:'明るい部屋',light_desc:'日中使用',dark_title:'暗室',dark_desc:'シネマ設定',outdoor_title:'屋外',outdoor_desc:'防水',floor_title:'フロアライジング',drop_title:'ドロップダウン',ceiling_title:'天井埋込',frame_title:'固定フレーム',visible_title:'別スピーカー',hidden_title:'スクリーンの後ろ',show_results:'推奨を表示',results_title:'あなたにぴったりのスクリーン',best:'ベストチョイス',complete_all:'推奨を表示する前に、すべての質問に回答してください。',outdoor_warning:'⚠️ 重要',outdoor_warning_desc:'USTプロジェクターは屋外に不向きです。',no_results:'この構成に一致する推奨はありません。'}
+};
+
+const PROJECTORS=[
+ {fullName:'Epson LS800',type:'ust',keywords:['epson','ls800']},
+ {fullName:'Epson LS12000',type:'long',keywords:['epson','ls12000']},
+ {fullName:'BenQ V7050i',type:'ust',keywords:['benq','v7050i']},
+ {fullName:'Sony VPL-XW5000ES',type:'long',keywords:['sony','xw5000']}
+];
+
+function required(){return ['projector','environment','installation','audio'];}
+function updateProgress(){const done=required().filter(k=>state[k]).length;document.getElementById('progress-fill').style.width=`${done/required().length*100}%`;}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n; if(translations[currentLang][k]) el.textContent=translations[currentLang][k];});
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{const k=el.dataset.i18nPlaceholder; if(translations[currentLang][k]) el.placeholder=translations[currentLang][k];});
+}
+function recommend(){const rule=RECOMMENDATION_RULES.find(r=>r.when(state));return rule?rule.products:[];}
+function renderResults(){
+  const list=document.getElementById('result-list'); list.innerHTML='';
+  if(state.environment==='outdoor' && state.projector==='ust'){
+    list.insertAdjacentHTML('beforeend',`<div class="warning-box"><b>${translations[currentLang].outdoor_warning}</b><div>${translations[currentLang].outdoor_warning_desc}</div></div>`)
+  }
+  const recs=recommend();
+  if(!recs.length){list.insertAdjacentHTML('beforeend',`<div class="warning-box">${translations[currentLang].no_results}</div>`);} else {
+    recs.forEach(r=>{const p=PRODUCT_CATALOG[r.id];if(!p) return;list.insertAdjacentHTML('beforeend',`<div class="result-card"><b>${r.id}</b> · ${translations[currentLang][r.badge]||r.badge}<div>${p.desc[currentLang]}</div><a href="${p.url}" target="_blank">${p.url}</a></div>`);});
+  }
+  document.getElementById('results').classList.add('show');
+}
+
+// 事件委托
+const app=document.getElementById('app');
+app.addEventListener('click',(e)=>{
+  const langBtn=e.target.closest('[data-lang]');
+  if(langBtn){currentLang=langBtn.dataset.lang;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b===langBtn));applyI18n();return;}
+
+  const opt=e.target.closest('.option-card[data-category]');
+  if(opt){
+    const {category,value}=opt.dataset;state[category]=value;
+    document.querySelectorAll(`.option-card[data-category="${category}"]`).forEach(c=>c.classList.remove('selected'));
+    opt.classList.add('selected');
+    updateProgress();
+    return;
+  }
+
+  if(e.target.id==='show-btn'){
+    const ok=required().every(k=>state[k]);
+    if(!ok){alert(translations[currentLang].complete_all);return;}
+    renderResults();
+  }
+});
+
+const input=document.getElementById('model-input');
+input.addEventListener('input',()=>{
+  const q=input.value.toLowerCase().trim(); const menu=document.getElementById('autocomplete');
+  if(q.length<2){menu.classList.remove('show');return;}
+  const rows=PROJECTORS.filter(p=>p.keywords.some(k=>k.includes(q))).slice(0,6);
+  menu.innerHTML=rows.map(r=>`<div class="autocomplete-item" data-projector="${r.fullName}">${r.fullName}</div>`).join('');
+  menu.classList.toggle('show',rows.length>0);
+});
+
+app.addEventListener('click',(e)=>{
+  const item=e.target.closest('.autocomplete-item'); if(!item) return;
+  const p=PROJECTORS.find(x=>x.fullName===item.dataset.projector); if(!p) return;
+  input.value=p.fullName; document.getElementById('autocomplete').classList.remove('show');
+  state.projector=p.type;
+  document.querySelectorAll('.option-card[data-category="projector"]').forEach(c=>c.classList.toggle('selected',c.dataset.value===p.type));
+  updateProgress();
+});
+
+document.addEventListener('click',(e)=>{if(!e.target.closest('#model-input')&&!e.target.closest('#autocomplete'))document.getElementById('autocomplete').classList.remove('show');});
+applyI18n(); updateProgress();
+</script>
+</body>
+</html>
