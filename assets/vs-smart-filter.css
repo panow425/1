@@ -1,0 +1,28 @@
+.vsf{--bg:#f4f4f5;--white:#fff;--primary:#0f172a;--accent:#2563eb;--muted:#64748b;--border:#e4e4e7;--chip-bg:#dbeafe;--chip-color:#1d4ed8;--shadow:0 10px 24px rgba(15,23,42,.08);background:linear-gradient(180deg,#f8fafc 0%,var(--bg) 100%);padding:14px;border-radius:16px;box-shadow:var(--shadow)}
+.vsf__header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.vsf__brand{display:flex;align-items:center;gap:10px}.vsf__logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#e11d48,#f97316);display:grid;place-items:center;animation:vsf-float 2.6s ease-in-out infinite}
+.vsf__title{margin:0;color:var(--primary);font-weight:800}.vsf__subtitle{margin:0;color:var(--muted);font-size:12px}
+.vsf__btn{border:0;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:999px;padding:9px 14px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease;box-shadow:0 8px 18px rgba(15,23,42,.2)}
+.vsf__btn:hover{transform:translateY(-1px) scale(1.02)}.vsf__btn:active{transform:scale(.98)}
+.vsf__badge{font-size:11px;line-height:1;background:#dc2626;padding:3px 8px;border-radius:999px;animation:vsf-pop .24s ease}
+.vsf__chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.vsf__chip{font-size:12px;text-decoration:none;color:var(--chip-color);background:var(--chip-bg);padding:5px 10px;border-radius:999px;transition:all .18s ease}
+.vsf__chip:hover{transform:translateY(-1px);filter:brightness(.98)}.vsf__chip--clear{background:#fee2e2;color:#be123c}
+.vsf__meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+.vsf__meta select{border:1px solid var(--border);background:#fff;border-radius:10px;padding:6px 8px}
+.vsf__overlay{position:fixed;inset:0;background:rgba(2,6,23,.52);z-index:9998;backdrop-filter:blur(2px)}
+.vsf__sheet{position:fixed;left:0;right:0;bottom:0;max-height:90vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;z-index:9999;transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.vsf__sheet.is-open{transform:translateY(0)}
+.vsf__sheet-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);padding:14px;display:flex;justify-content:space-between;align-items:center}
+.vsf__sheet-head h2{margin:0;font-size:18px}.vsf__sheet-head button{border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer}
+.vsf__form{padding:0 14px 14px}.vsf__group{border-bottom:1px solid var(--border);padding:8px 0}.vsf__group summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:700;padding:8px 0;list-style:none}
+.vsf__group summary::-webkit-details-marker{display:none}
+.vsf__group summary span{font-size:12px;background:var(--accent);color:#fff;padding:1px 8px;border-radius:999px}
+.vsf__opts{display:grid;gap:8px;padding-bottom:8px}.vsf__opt{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:14px;padding:6px;border-radius:10px;transition:background .15s ease}
+.vsf__opt:hover{background:#f8fafc}.vsf__opt small{color:var(--muted)}.vsf__opt.is-disabled{opacity:.45}
+.vsf__price{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:10px}.vsf__price label{display:grid;gap:6px;font-size:13px;color:var(--muted)}.vsf__price input{border:1px solid var(--border);border-radius:10px;padding:8px}
+.vsf__actions{position:sticky;bottom:0;background:#fff;padding-top:10px;display:grid;grid-template-columns:1fr 2fr;gap:8px}.vsf__secondary,.vsf__primary{text-align:center;padding:11px;border-radius:12px;text-decoration:none;font-weight:700}
+.vsf__secondary{background:#f1f5f9;color:#0f172a}.vsf__primary{border:0;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;cursor:pointer;box-shadow:0 8px 18px rgba(15,23,42,.18)}
+.vsf__primary.is-active{animation:vsf-pop .24s ease}
+.visually-hidden{position:absolute;left:-9999px}
+@keyframes vsf-pop{0%{transform:scale(.94)}100%{transform:scale(1)}}
+@keyframes vsf-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
