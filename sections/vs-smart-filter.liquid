@@ -1,0 +1,149 @@
+{% comment %}
+  VIVIDSTORM Smart Filter Section
+  Usage: add to collection template (Online Store 2.0)
+{% endcomment %}
+
+{{ 'vs-smart-filter.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'vs-smart-filter.js' | asset_url }}" defer></script>
+
+<section class="vsf" data-vsf>
+  <header class="vsf__header">
+    <div class="vsf__brand">
+      <div class="vsf__logo">🎬</div>
+      <div>
+        <p class="vsf__title">{{ section.settings.brand_title }}</p>
+        <p class="vsf__subtitle">{{ section.settings.brand_subtitle }}</p>
+      </div>
+    </div>
+
+    <button class="vsf__btn" type="button" data-open-filter>
+      筛选
+      {% assign active_badge_count = 0 %}
+      {% for filter in collection.filters %}
+        {% assign active_badge_count = active_badge_count | plus: filter.active_values.size %}
+        {% if filter.type == 'price_range' and (filter.min_value.value or filter.max_value.value) %}
+          {% assign active_badge_count = active_badge_count | plus: 1 %}
+        {% endif %}
+      {% endfor %}
+      <span class="vsf__badge" data-filter-badge {% if active_badge_count == 0 %}hidden{% endif %}>{{ active_badge_count }}</span>
+    </button>
+  </header>
+
+  <div class="vsf__chips" data-active-chips>
+    {% assign active_filter_count = 0 %}
+    {% for filter in collection.filters %}
+      {% for active_value in filter.active_values %}
+        {% assign active_filter_count = active_filter_count | plus: 1 %}
+        <a class="vsf__chip" href="{{ active_value.url_to_remove }}">{{ active_value.label }} ×</a>
+      {% endfor %}
+
+      {% if filter.type == 'price_range' %}
+        {% if filter.min_value.value or filter.max_value.value %}
+          {% assign active_filter_count = active_filter_count | plus: 1 %}
+          <a class="vsf__chip" href="{{ filter.url_to_remove }}">
+            价格: {{ filter.min_value.value | default: 0 | money_without_trailing_zeros }} - {{ filter.max_value.value | default: filter.range_max | money_without_trailing_zeros }} ×
+          </a>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {% if active_filter_count > 0 %}
+      <a class="vsf__chip vsf__chip--clear" href="{{ collection.url }}">清空全部</a>
+    {% endif %}
+  </div>
+
+  <div class="vsf__meta">
+    <p>{{ collection.products_count }} 个商品</p>
+    <label>
+      <span class="visually-hidden">排序</span>
+      <select name="sort_by" form="VSFilterForm" data-sort-select>
+        {% for option in collection.sort_options %}
+          <option value="{{ option.value }}" {% if option.value == collection.sort_by %}selected{% endif %}>{{ option.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="vsf__overlay" data-filter-overlay hidden></div>
+  <aside class="vsf__sheet" data-filter-sheet aria-hidden="true">
+    <div class="vsf__sheet-head">
+      <h2>筛选</h2>
+      <button type="button" data-close-filter>关闭</button>
+    </div>
+
+    <form id="VSFilterForm" class="vsf__form" action="{{ collection.url }}" method="get">
+      {% if collection.current_vendor %}<input type="hidden" name="filter.p.vendor" value="{{ collection.current_vendor | escape }}">{% endif %}
+      {% if collection.current_type %}<input type="hidden" name="filter.p.product_type" value="{{ collection.current_type | escape }}">{% endif %}
+
+      {% for filter in collection.filters %}
+        <details class="vsf__group" {% if filter.active_values.size > 0 %}open{% endif %}>
+          <summary>
+            {{ filter.label }}
+            {% if filter.active_values.size > 0 %}<span>{{ filter.active_values.size }}</span>{% endif %}
+          </summary>
+
+          {% if filter.type == 'list' %}
+            <div class="vsf__opts">
+              {% for value in filter.values %}
+                <label class="vsf__opt {% unless value.count > 0 or value.active %}is-disabled{% endunless %}">
+                  <input
+                    type="checkbox"
+                    name="{{ value.param_name }}"
+                    value="{{ value.value }}"
+                    {% if value.active %}checked{% endif %}
+                    {% unless value.count > 0 or value.active %}disabled{% endunless %}
+                  >
+                  <span>{{ value.label }}</span>
+                  <small>{{ value.count }}</small>
+                </label>
+              {% endfor %}
+            </div>
+          {% elsif filter.type == 'price_range' %}
+            <div class="vsf__price">
+              <label>
+                最低价
+                <input type="number" name="{{ filter.min_value.param_name }}" value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}" min="0" max="{{ filter.range_max | money_without_currency | replace: ',', '' }}">
+              </label>
+              <label>
+                最高价
+                <input type="number" name="{{ filter.max_value.param_name }}" value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}" min="0" max="{{ filter.range_max | money_without_currency | replace: ',', '' }}">
+              </label>
+            </div>
+          {% endif %}
+        </details>
+      {% endfor %}
+
+      <input type="hidden" name="sort_by" value="{{ collection.sort_by | default: collection.default_sort_by }}" data-sort-proxy>
+
+      <div class="vsf__actions">
+        <a class="vsf__secondary" href="{{ collection.url }}">重置</a>
+        <button class="vsf__primary" type="submit">查看结果</button>
+      </div>
+    </form>
+  </aside>
+</section>
+
+{% schema %}
+{
+  "name": "VIVIDSTORM Smart Filter",
+  "settings": [
+    {
+      "type": "text",
+      "id": "brand_title",
+      "label": "品牌标题",
+      "default": "VIVIDSTORM"
+    },
+    {
+      "type": "text",
+      "id": "brand_subtitle",
+      "label": "品牌副标题",
+      "default": "Projector Screens"
+    }
+  ],
+  "presets": [
+    {
+      "name": "VIVIDSTORM Smart Filter"
+    }
+  ]
+}
+{% endschema %}
