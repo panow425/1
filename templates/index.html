@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>麻将记分</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">🀄 麻将记分</div>
+    <div class="actions">
+      <button id="btn-home" class="ghost">主页</button>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <template id="tpl-home">
+    <section class="page">
+      <div class="card">
+        <h2>开新局</h2>
+        <label class="row">
+          <span>牌局名称（可选）</span>
+          <input id="new-name" placeholder="例如：周末家庭赛">
+        </label>
+        <div class="grid-4">
+          <label><span>玩家 1</span><input class="new-player" data-i="0"></label>
+          <label><span>玩家 2</span><input class="new-player" data-i="1"></label>
+          <label><span>玩家 3</span><input class="new-player" data-i="2"></label>
+          <label><span>玩家 4</span><input class="new-player" data-i="3"></label>
+        </div>
+        <button id="btn-create" class="primary big">开始牌局</button>
+      </div>
+
+      <div class="card">
+        <h2>历史牌局</h2>
+        <div id="session-list" class="session-list"></div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-session">
+    <section class="page">
+      <div class="card session-head">
+        <div>
+          <h2 id="s-name"></h2>
+          <div class="muted" id="s-meta"></div>
+        </div>
+        <div class="head-actions">
+          <button id="btn-end" class="ghost">结束牌局</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>当前余额</h3>
+        <div id="balances" class="balances"></div>
+      </div>
+
+      <div class="card">
+        <h3>记一盘</h3>
+
+        <div class="label">谁赢的 / 杠的</div>
+        <div id="winner-pick" class="picker"></div>
+
+        <div class="label">怎么赢 / 杠</div>
+        <div id="kind-pick" class="picker kinds">
+          <div class="pick" data-kind="zimo">自摸</div>
+          <div class="pick" data-kind="gang_chagang">插杠 (各 1)</div>
+          <div class="pick" data-kind="gang_angang">暗杠 (各 2)</div>
+          <div class="pick" data-kind="gang_others">杠别人 (3)</div>
+        </div>
+
+        <div id="amount-row" class="hidden">
+          <div class="label">金额（块）</div>
+          <div id="amount-pick" class="picker amounts"></div>
+        </div>
+
+        <div id="payer-row" class="hidden">
+          <div class="label">谁给的杠</div>
+          <div id="payer-pick" class="picker"></div>
+        </div>
+
+        <div class="hint" id="hand-hint"></div>
+
+        <div class="hand-actions">
+          <button id="btn-huang" class="ghost">黄庄（流局）</button>
+          <button id="btn-record" class="primary big">记录这一盘</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>历史记录</h3>
+        <div id="hands" class="hands"></div>
+      </div>
+    </section>
+  </template>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
