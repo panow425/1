@@ -305,20 +305,34 @@ button.mega {
 
 /* Record */
 .record-card { display: flex; flex-direction: column; gap: 12px; }
-.amount-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+/* Two-row amount strip: row 1 has 3 (wider) buttons, row 2 has 4 */
+.amount-strip {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+}
 .amount-strip .a {
   text-align: center;
-  padding: 12px 2px;
+  padding: 14px 4px;
   background: var(--panel-2);
   border-radius: 12px;
   border: 1px solid var(--line);
-  font-weight: 700; font-size: 13px;
+  font-weight: 700; font-size: 14px;
   cursor: pointer;
   line-height: 1.15;
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, background .15s;
 }
-.amount-strip .a .v { font-size: 14px; display: block; font-weight: 800; }
-.amount-strip .a .m { font-size: 10px; color: var(--muted); display: block; margin-top: 3px; }
+/* row 1: 无马 / 1 / 2 — each 4 cols wide */
+.amount-strip .a:nth-child(1),
+.amount-strip .a:nth-child(2),
+.amount-strip .a:nth-child(3) { grid-column: span 4; }
+/* row 2: 3 / 4 / 5 / 6 — each 3 cols wide */
+.amount-strip .a:nth-child(4),
+.amount-strip .a:nth-child(5),
+.amount-strip .a:nth-child(6),
+.amount-strip .a:nth-child(7) { grid-column: span 3; }
+.amount-strip .a .v { font-size: 16px; display: block; font-weight: 800; }
+.amount-strip .a .m { font-size: 11px; color: var(--muted); display: block; margin-top: 4px; }
 .amount-strip .a:active { transform: scale(0.92); }
 .amount-strip .a.selected {
   background: linear-gradient(135deg, var(--gold), #ff9b3f);
