@@ -34,6 +34,7 @@ const state = {
 const meKey = (sid) => `mahjong:me:session:${sid}`;
 const themeKey = "mahjong:theme";
 const loginKey = "mahjong:login";
+const soundKey = "mahjong:sound";
 function getMe(sid) { const v = localStorage.getItem(meKey(sid)); return v ? Number(v) : null; }
 function setMe(sid, pid) {
   if (pid == null) localStorage.removeItem(meKey(sid));
@@ -46,6 +47,67 @@ function setLogin(name) {
   if (!name) localStorage.removeItem(loginKey);
   else localStorage.setItem(loginKey, name);
   state.loginName = name;
+}
+function getSoundOn() {
+  const v = localStorage.getItem(soundKey);
+  return v == null ? true : v === "1";
+}
+function setSoundOn(on) {
+  localStorage.setItem(soundKey, on ? "1" : "0");
+  SoundFx.enabled = on;
+  $("#btn-sound").textContent = on ? "🔊" : "🔇";
+}
+
+/* ============== sound + haptic ============== */
+const SoundFx = {
+  ctx: null,
+  enabled: true,
+  init() {
+    if (this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try { this.ctx = new Ctx(); } catch {}
+  },
+  resume() {
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  beep(freq, dur, type = "sine", vol = 0.18, when = 0) {
+    if (!this.enabled || !this.ctx) return;
+    const t0 = this.ctx.currentTime + when;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(this.ctx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+  },
+  pick()  { this.beep(880, 0.06, "triangle", 0.18); },
+  click() { this.beep(640, 0.04, "square",   0.12); },
+  win() {
+    // bright arpeggio
+    [523, 659, 784, 1046].forEach((f, i) => this.beep(f, 0.18, "triangle", 0.22, i * 0.07));
+  },
+  gang() {
+    this.beep(660,  0.10, "sawtooth", 0.18);
+    this.beep(1320, 0.10, "sawtooth", 0.18, 0.09);
+  },
+  huang() {
+    this.beep(180, 0.30, "sine", 0.20);
+  },
+  undo() {
+    this.beep(500, 0.06, "triangle", 0.14);
+    this.beep(300, 0.07, "triangle", 0.14, 0.06);
+  },
+};
+
+function buzz(ms = 15) {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try { navigator.vibrate(ms); } catch {}
+  }
 }
 
 function applyTheme(key) {
@@ -499,7 +561,10 @@ function renderSession(s) {
     el.onclick = () => {
       state.selectedAmount = v;
       $$("#amount-strip .a").forEach(n => n.classList.remove("selected"));
-      el.classList.add("selected");
+      el.classList.add("selected", "poking");
+      setTimeout(() => el.classList.remove("poking"), 420);
+      SoundFx.pick();
+      buzz(15);
     };
     strip.appendChild(el);
   });
@@ -523,6 +588,8 @@ function renderSession(s) {
 
   btnZimo.onclick = () => {
     if (state.myPlayerId == null) { toast("先点上方「选我是哪一家」"); return; }
+    buzz(40);
+    SoundFx.win();
     addHand({ kind: "zimo", winner_id: state.myPlayerId, amount: state.selectedAmount });
   };
 
@@ -534,9 +601,13 @@ function renderSession(s) {
         openPickModal({
           title: "我杠了谁？",
           choices: s.players.filter(p => p.id !== state.myPlayerId),
-          onOk: (pid) => addHand({ kind: "gang_others", winner_id: state.myPlayerId, loser_id: pid }),
+          onOk: (pid) => {
+            buzz(30); SoundFx.gang();
+            addHand({ kind: "gang_others", winner_id: state.myPlayerId, loser_id: pid });
+          },
         });
       } else {
+        buzz(30); SoundFx.gang();
         addHand({ kind: act, winner_id: state.myPlayerId });
       }
     };
@@ -547,18 +618,23 @@ function renderSession(s) {
       title: "谁赢了？",
       choices: s.players,
       withAmount: true,
-      onOk: (pid, amt) => addHand({ kind: "zimo", winner_id: pid, amount: amt }),
+      onOk: (pid, amt) => {
+        buzz(30); SoundFx.win();
+        addHand({ kind: "zimo", winner_id: pid, amount: amt });
+      },
     });
   };
 
   btnHuang.onclick = () => {
     if (!confirm("记一盘黄庄（流局，不计分）？")) return;
+    buzz(20); SoundFx.huang();
     addHand({ kind: "huangzhuang" });
   };
 
   btnUndo.onclick = async () => {
     if (!lastHand) { toast("还没有可撤销的记录"); return; }
     if (!confirm("撤销最近一盘？")) return;
+    buzz(15); SoundFx.undo();
     await api(`/api/sessions/${s.id}/hands/${lastHand.id}`, { method: "DELETE" });
     refreshOnce();
   };
@@ -906,6 +982,23 @@ async function showPlayer(gid) {
 $("#btn-home").onclick = () => showHome();
 $("#btn-theme").onclick = () => openThemeModal();
 $("#btn-leaderboard").onclick = () => showLeaderboard();
+$("#btn-sound").onclick = () => {
+  // toggle and play a confirm beep
+  const next = !SoundFx.enabled;
+  setSoundOn(next);
+  if (next) { SoundFx.init(); SoundFx.resume(); SoundFx.click(); }
+  buzz(15);
+};
+
+// Unlock audio on first user gesture (browsers require this)
+function unlockAudioOnce() {
+  SoundFx.init();
+  SoundFx.resume();
+  document.removeEventListener("click", unlockAudioOnce);
+  document.removeEventListener("touchstart", unlockAudioOnce);
+}
+document.addEventListener("click", unlockAudioOnce, { once: true });
+document.addEventListener("touchstart", unlockAudioOnce, { once: true });
 
 (async function init() {
   try {
@@ -914,6 +1007,8 @@ $("#btn-leaderboard").onclick = () => showLeaderboard();
     state.selectedAmount = state.config.amounts[0];
   } catch {}
   state.loginName = getLogin();
+  SoundFx.enabled = getSoundOn();
+  $("#btn-sound").textContent = SoundFx.enabled ? "🔊" : "🔇";
   applyTheme(getTheme());
   showHome();
 })();
