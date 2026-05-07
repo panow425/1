@@ -11,12 +11,14 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "mahjong.db")
 
 ALLOWED_AMOUNTS = [2, 4, 6, 8, 10, 12, 14]
+# 抓几个马 → 实际金额，2 + 2*马
+AMOUNT_LABELS = ["无马", "1个马", "2个马", "3个马", "4个马", "5个马", "6个马"]
 DEFAULT_PLAYERS = ["东家", "南家", "西家", "北家"]
 
 GANG_FIXED = {
-    "gang_chagang": 1,   # 插杠：其他三家各 1
-    "gang_angang": 2,    # 暗杠：其他三家各 2
-    "gang_others": 3,    # 杠别人：放杠者一人 3
+    "gang_chagang": 1,
+    "gang_angang": 2,
+    "gang_others": 3,
 }
 ALL_KINDS = {"zimo", "huangzhuang", *GANG_FIXED.keys()}
 
@@ -51,12 +53,19 @@ def init_db():
                 created_at TEXT NOT NULL,
                 ended_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS players_global (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id INTEGER NOT NULL,
                 seat INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                global_id INTEGER,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (global_id)  REFERENCES players_global(id)
             );
             CREATE TABLE IF NOT EXISTS hands (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,10 +83,33 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_hands_session ON hands(session_id, id);
             """
         )
+        # idempotent migrations for older DBs
         cols = {r[1] for r in conn.execute("PRAGMA table_info(hands)").fetchall()}
         if "loser_id" not in cols:
             conn.execute("ALTER TABLE hands ADD COLUMN loser_id INTEGER")
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()}
+        if "global_id" not in cols:
+            conn.execute("ALTER TABLE players ADD COLUMN global_id INTEGER")
+        # backfill global_id for existing players
+        rows = conn.execute("SELECT id, name FROM players WHERE global_id IS NULL").fetchall()
+        for r in rows:
+            gid = _link_or_create_global(conn, r[1])
+            conn.execute("UPDATE players SET global_id = ? WHERE id = ?", (gid, r[0]))
         conn.commit()
+
+
+def _link_or_create_global(conn, name):
+    name = name.strip()
+    row = conn.execute(
+        "SELECT id FROM players_global WHERE name = ? COLLATE NOCASE", (name,)
+    ).fetchone()
+    if row:
+        return row[0] if isinstance(row, tuple) else row["id"]
+    cur = conn.execute(
+        "INSERT INTO players_global(name, created_at) VALUES(?, ?)",
+        (name, datetime.now().isoformat(timespec="seconds")),
+    )
+    return cur.lastrowid
 
 
 def session_to_dict(row):
@@ -91,14 +123,17 @@ def session_to_dict(row):
 
 def players_for_session(db, session_id):
     rows = db.execute(
-        "SELECT id, seat, name FROM players WHERE session_id = ? ORDER BY seat",
+        "SELECT id, seat, name, global_id FROM players "
+        "WHERE session_id = ? ORDER BY seat",
         (session_id,),
     ).fetchall()
-    return [{"id": r["id"], "seat": r["seat"], "name": r["name"]} for r in rows]
+    return [
+        {"id": r["id"], "seat": r["seat"], "name": r["name"], "global_id": r["global_id"]}
+        for r in rows
+    ]
 
 
 def hand_outcome_for(player_id, hand):
-    """Return 'win' / 'lose' / 'neutral' for this player on this hand."""
     kind = hand["kind"]
     if kind == "huangzhuang":
         return "neutral"
@@ -106,7 +141,6 @@ def hand_outcome_for(player_id, hand):
         return "win"
     if kind == "gang_others":
         return "lose" if hand["loser_id"] == player_id else "neutral"
-    # zimo / gang_chagang / gang_angang: all 3 non-winners lose
     return "lose"
 
 
@@ -141,7 +175,6 @@ def compute_balances_and_streaks(db, session_id):
                 balances[p["id"]] -= amt
                 balances[winner] += amt
 
-    # streaks: walk hands in reverse for each player
     hands_desc = list(reversed(hands_asc))
     streaks = {}
     for p in players:
@@ -151,8 +184,7 @@ def compute_balances_and_streaks(db, session_id):
             if outcome == "neutral":
                 continue
             if kind is None:
-                kind = outcome
-                count = 1
+                kind, count = outcome, 1
             elif outcome == kind:
                 count += 1
             else:
@@ -164,6 +196,7 @@ def compute_balances_and_streaks(db, session_id):
             "player_id": p["id"],
             "seat": p["seat"],
             "name": p["name"],
+            "global_id": p["global_id"],
             "balance": balances.get(p["id"], 0),
             "streak": streaks[p["id"]],
         }
@@ -172,7 +205,6 @@ def compute_balances_and_streaks(db, session_id):
 
 
 def compute_settlement(balances):
-    """Greedy: largest debtor pays largest creditor."""
     creditors = sorted(
         [{"id": b["player_id"], "name": b["name"], "amount": b["balance"]}
          for b in balances if b["balance"] > 0],
@@ -183,7 +215,6 @@ def compute_settlement(balances):
          for b in balances if b["balance"] < 0],
         key=lambda x: -x["amount"],
     )
-
     transfers = []
     i = j = 0
     while i < len(debtors) and j < len(creditors):
@@ -197,12 +228,105 @@ def compute_settlement(balances):
             })
         d["amount"] -= amt
         c["amount"] -= amt
-        if d["amount"] == 0:
-            i += 1
-        if c["amount"] == 0:
-            j += 1
+        if d["amount"] == 0: i += 1
+        if c["amount"] == 0: j += 1
     return transfers
 
+
+def compute_leaderboard(db):
+    """Aggregate stats per global player across all sessions."""
+    rows = db.execute(
+        "SELECT id, name FROM players_global ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    out = []
+    for g in rows:
+        sps = db.execute(
+            "SELECT id, session_id FROM players WHERE global_id = ?", (g["id"],)
+        ).fetchall()
+        if not sps:
+            continue
+        sessions = set(sp["session_id"] for sp in sps)
+        sp_by_session = {sp["session_id"]: sp["id"] for sp in sps}
+        total = 0
+        wins = 0
+        losses = 0
+        zimo = 0
+        gang = 0
+        max_win = 0
+        hands_played = 0
+        for sid in sessions:
+            sp_id = sp_by_session[sid]
+            balances = compute_balances_and_streaks(db, sid)
+            for b in balances:
+                if b["player_id"] == sp_id:
+                    total += b["balance"]
+            hands = db.execute(
+                "SELECT kind, amount, winner_id, loser_id FROM hands WHERE session_id = ?",
+                (sid,),
+            ).fetchall()
+            for h in hands:
+                outcome = hand_outcome_for(sp_id, h)
+                if outcome == "win":
+                    wins += 1
+                    if h["kind"] == "zimo":
+                        zimo += 1
+                        max_win = max(max_win, h["amount"] * 3)
+                    elif h["kind"] in ("gang_chagang", "gang_angang"):
+                        gang += 1
+                        max_win = max(max_win, h["amount"] * 3)
+                    elif h["kind"] == "gang_others":
+                        gang += 1
+                        max_win = max(max_win, h["amount"])
+                elif outcome == "lose":
+                    losses += 1
+                if outcome != "neutral":
+                    hands_played += 1
+        out.append({
+            "global_id": g["id"],
+            "name": g["name"],
+            "sessions": len(sessions),
+            "hands_played": hands_played,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": round(wins / hands_played, 3) if hands_played else 0,
+            "total_balance": total,
+            "zimo": zimo,
+            "gang": gang,
+            "max_win": max_win,
+        })
+    return sorted(out, key=lambda r: -r["total_balance"])
+
+
+def compute_player_history(db, gid):
+    """Per-session breakdown for a global player."""
+    sps = db.execute(
+        "SELECT p.id, p.session_id, p.name, p.seat, s.name AS session_name, "
+        "       s.created_at, s.ended_at "
+        "FROM players p JOIN sessions s ON s.id = p.session_id "
+        "WHERE p.global_id = ? ORDER BY s.id DESC",
+        (gid,),
+    ).fetchall()
+    out = []
+    for sp in sps:
+        balances = compute_balances_and_streaks(db, sp["session_id"])
+        bal = next((b["balance"] for b in balances if b["player_id"] == sp["id"]), 0)
+        hand_count = db.execute(
+            "SELECT COUNT(*) AS c FROM hands WHERE session_id = ?", (sp["session_id"],)
+        ).fetchone()["c"]
+        out.append({
+            "session_id": sp["session_id"],
+            "session_name": sp["session_name"],
+            "session_created": sp["created_at"],
+            "session_ended": sp["ended_at"],
+            "name_in_session": sp["name"],
+            "seat": sp["seat"],
+            "balance": bal,
+            "hand_count": hand_count,
+        })
+    return out
+
+
+# ====================== ROUTES ======================
 
 @app.route("/")
 def index():
@@ -211,13 +335,12 @@ def index():
 
 @app.get("/api/config")
 def api_config():
-    return jsonify(
-        {
-            "amounts": ALLOWED_AMOUNTS,
-            "default_players": DEFAULT_PLAYERS,
-            "gang_fixed": GANG_FIXED,
-        }
-    )
+    return jsonify({
+        "amounts": ALLOWED_AMOUNTS,
+        "amount_labels": AMOUNT_LABELS,
+        "default_players": DEFAULT_PLAYERS,
+        "gang_fixed": GANG_FIXED,
+    })
 
 
 @app.get("/api/sessions")
@@ -256,9 +379,10 @@ def api_create_session():
     )
     sid = cur.lastrowid
     for seat, pname in enumerate(names):
+        gid = _link_or_create_global(db, pname)
         db.execute(
-            "INSERT INTO players(session_id, seat, name) VALUES(?, ?, ?)",
-            (sid, seat, pname),
+            "INSERT INTO players(session_id, seat, name, global_id) VALUES(?, ?, ?, ?)",
+            (sid, seat, pname, gid),
         )
     db.commit()
     return jsonify({"id": sid})
@@ -268,8 +392,7 @@ def api_create_session():
 def api_get_session(sid):
     db = get_db()
     row = db.execute(
-        "SELECT id, name, created_at, ended_at FROM sessions WHERE id = ?",
-        (sid,),
+        "SELECT id, name, created_at, ended_at FROM sessions WHERE id = ?", (sid,)
     ).fetchone()
     if not row:
         return jsonify({"error": "未找到牌局"}), 404
@@ -305,9 +428,10 @@ def api_rename_player(sid, pid):
     if len(name) > 12:
         return jsonify({"error": "名字最多 12 个字"}), 400
     db = get_db()
+    gid = _link_or_create_global(db, name)
     cur = db.execute(
-        "UPDATE players SET name = ? WHERE id = ? AND session_id = ?",
-        (name, pid, sid),
+        "UPDATE players SET name = ?, global_id = ? WHERE id = ? AND session_id = ?",
+        (name, gid, pid, sid),
     )
     db.commit()
     if cur.rowcount == 0:
@@ -322,9 +446,7 @@ def api_rename_session(sid):
     if not name:
         return jsonify({"error": "名字不能为空"}), 400
     db = get_db()
-    cur = db.execute(
-        "UPDATE sessions SET name = ? WHERE id = ?", (name, sid)
-    )
+    cur = db.execute("UPDATE sessions SET name = ? WHERE id = ?", (name, sid))
     db.commit()
     if cur.rowcount == 0:
         return jsonify({"error": "未找到牌局"}), 404
@@ -381,11 +503,7 @@ def api_add_hand(sid):
         (
             sid,
             datetime.now().isoformat(timespec="seconds"),
-            kind,
-            amount,
-            winner_id,
-            loser_id,
-            note,
+            kind, amount, winner_id, loser_id, note,
         ),
     )
     db.commit()
@@ -431,6 +549,39 @@ def api_delete_session(sid):
     db.execute("DELETE FROM sessions WHERE id = ?", (sid,))
     db.commit()
     return jsonify({"ok": True})
+
+
+@app.get("/api/leaderboard")
+def api_leaderboard():
+    db = get_db()
+    return jsonify(compute_leaderboard(db))
+
+
+@app.get("/api/players_global")
+def api_list_globals():
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, name FROM players_global ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    return jsonify([{"id": r["id"], "name": r["name"]} for r in rows])
+
+
+@app.get("/api/players_global/<int:gid>")
+def api_get_global(gid):
+    db = get_db()
+    row = db.execute(
+        "SELECT id, name FROM players_global WHERE id = ?", (gid,)
+    ).fetchone()
+    if not row:
+        return jsonify({"error": "未找到玩家"}), 404
+    leaderboard = compute_leaderboard(db)
+    stats = next((r for r in leaderboard if r["global_id"] == gid), None)
+    return jsonify({
+        "global_id": row["id"],
+        "name": row["name"],
+        "stats": stats,
+        "history": compute_player_history(db, gid),
+    })
 
 
 def _lan_ip():

@@ -9,12 +9,15 @@
   <title>麻将记分</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body data-theme="douyin">
   <div class="bg-glow"></div>
+  <div class="bg-pattern"></div>
 
   <header class="topbar">
-    <div class="title" id="topbar-title">🀄 麻将</div>
+    <div class="title" id="topbar-title">🎵 麻将</div>
     <div class="actions">
+      <button id="btn-leaderboard" class="ghost" title="战绩">🏆</button>
+      <button id="btn-theme" class="ghost" title="主题">🎨</button>
       <button id="btn-home" class="ghost">主页</button>
     </div>
   </header>
@@ -22,12 +25,15 @@
   <main id="app"></main>
 
   <div id="toast-stack" class="toast-stack"></div>
+  <div id="confetti-stage" class="confetti-stage"></div>
 
+  <!-- ============== HOME ============== -->
   <template id="tpl-home">
     <section class="page">
       <div class="hero">
-        <div class="hero-title">来一局？</div>
-        <div class="hero-sub">点下面，立刻开始</div>
+        <div class="hero-emoji" id="hero-emoji">🀄</div>
+        <div class="hero-title" id="hero-title">来一局？</div>
+        <div class="hero-sub" id="hero-sub">点下面，立刻开始</div>
         <button id="btn-create" class="primary mega">🎰 开新局</button>
       </div>
 
@@ -38,17 +44,22 @@
     </section>
   </template>
 
+  <!-- ============== PICK ME ============== -->
   <template id="tpl-pick-me">
     <section class="page">
       <div class="card pick-me">
         <div class="card-h">这台设备是哪一家？</div>
         <div class="muted small">选一次就好，下次自动认你</div>
         <div id="pick-me-grid" class="pick-me-grid"></div>
-        <button id="pick-me-skip" class="ghost wide">跳过 / 我只是围观</button>
+        <div class="row">
+          <button id="pick-me-login" class="ghost wide">用名字登录（已记录的玩家）</button>
+        </div>
+        <button id="pick-me-skip" class="ghost wide" style="margin-top:8px">跳过 / 我只是围观</button>
       </div>
     </section>
   </template>
 
+  <!-- ============== SESSION ============== -->
   <template id="tpl-session">
     <section class="page">
       <div class="card session-head">
@@ -117,14 +128,39 @@
     </section>
   </template>
 
-  <!-- Modal: pick payer (杠别人 / 别人赢了) -->
+  <!-- ============== LEADERBOARD ============== -->
+  <template id="tpl-leaderboard">
+    <section class="page">
+      <div class="card">
+        <div class="card-h">🏆 战绩榜</div>
+        <div class="muted small">所有玩过的人，按累计输赢排序</div>
+        <div id="leaderboard" class="leaderboard"></div>
+      </div>
+    </section>
+  </template>
+
+  <!-- ============== PLAYER DETAIL ============== -->
+  <template id="tpl-player">
+    <section class="page">
+      <div class="card">
+        <div class="card-h" id="pd-name"></div>
+        <div id="pd-stats" class="pd-stats"></div>
+      </div>
+      <div class="card">
+        <div class="card-h">参加过的牌局</div>
+        <div id="pd-history" class="pd-history"></div>
+      </div>
+    </section>
+  </template>
+
+  <!-- ============== MODAL: pick ============== -->
   <template id="tpl-modal-pick">
     <div class="modal-backdrop">
       <div class="modal">
         <div class="modal-h" id="modal-title">选一个</div>
         <div id="modal-grid" class="modal-grid"></div>
         <div id="modal-amount" class="hidden">
-          <div class="row-label center">金额</div>
+          <div class="row-label center">几个马</div>
           <div class="amount-strip" id="modal-amount-strip"></div>
         </div>
         <div class="modal-actions">
@@ -135,7 +171,7 @@
     </div>
   </template>
 
-  <!-- Modal: settlement -->
+  <!-- ============== MODAL: settle ============== -->
   <template id="tpl-modal-settle">
     <div class="modal-backdrop">
       <div class="modal">
@@ -144,6 +180,37 @@
         <div id="settle-list" class="settle-list"></div>
         <div class="modal-actions single">
           <button id="settle-close" class="primary">收起</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============== MODAL: theme ============== -->
+  <template id="tpl-modal-theme">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-h">🎨 选个主题</div>
+        <div id="theme-grid" class="theme-grid"></div>
+        <div class="modal-actions single">
+          <button id="theme-close" class="ghost">关闭</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============== MODAL: login by name ============== -->
+  <template id="tpl-modal-login">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-h">用名字登录</div>
+        <div class="muted small" style="margin-bottom: 10px">
+          输入或选择已记录过的名字，让这台设备记住你
+        </div>
+        <input id="login-input" placeholder="输入名字" autocomplete="off">
+        <div class="row-label">最近的玩家</div>
+        <div id="login-list" class="login-list"></div>
+        <div class="modal-actions">
+          <button id="login-cancel" class="ghost">取消</button>
         </div>
       </div>
     </div>

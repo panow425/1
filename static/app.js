@@ -2,47 +2,69 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const app = $("#app");
 
-const KIND_LABEL = {
-  zimo: "自摸",
-  gang_chagang: "插杠",
-  gang_angang: "暗杠",
-  gang_others: "杠别人",
-  huangzhuang: "黄庄",
-};
-
 const SEAT_NAMES = ["东", "南", "西", "北"];
+
+const THEMES = [
+  { key: "douyin", name: "默认",      emoji: "🎵", title: "🎵 麻将",  hero: "🀄", heroTitle: "来一局？",         heroSub: "点下面，立刻开始" },
+  { key: "bp",     name: "BLACKPINK", emoji: "🖤💖", title: "🖤💖 麻将", hero: "💖", heroTitle: "BORN PINK 局",     heroSub: "DDU-DU 来打个麻将" },
+  { key: "bad",    name: "羽毛球",    emoji: "🏸", title: "🏸 麻将",  hero: "🏸", heroTitle: "上场！",             heroSub: "杀球 / 网前 / 自摸" },
+  { key: "foot",   name: "足球",      emoji: "⚽", title: "⚽ 麻将",  hero: "⚽", heroTitle: "开球！",             heroSub: "进球就是自摸" },
+  { key: "mj",     name: "麻将",      emoji: "🀄", title: "🀄 麻将",  hero: "🀄", heroTitle: "搓一把",             heroSub: "正宗中国风" },
+];
 
 const state = {
   config: {
     amounts: [2, 4, 6, 8, 10, 12, 14],
+    amount_labels: ["无马", "1个马", "2个马", "3个马", "4个马", "5个马", "6个马"],
     default_players: ["东家", "南家", "西家", "北家"],
     gang_fixed: { gang_chagang: 1, gang_angang: 2, gang_others: 3 },
   },
   view: "home",
   sessionId: null,
-  data: null,                 // last fetched session data
+  data: null,
   selectedAmount: 2,
   pollTimer: null,
   lastSeenHandIds: new Set(),
-  myPlayerId: null,           // for current session, on this device
+  myPlayerId: null,
+  prevBalances: {},   // for pulse animation
+  loginName: null,    // optional saved name for "login"
 };
 
-/* ---------------- localStorage helpers ---------------- */
+/* ============== localStorage ============== */
 const meKey = (sid) => `mahjong:me:session:${sid}`;
-function getMe(sid) {
-  const v = localStorage.getItem(meKey(sid));
-  return v ? Number(v) : null;
-}
+const themeKey = "mahjong:theme";
+const loginKey = "mahjong:login";
+function getMe(sid) { const v = localStorage.getItem(meKey(sid)); return v ? Number(v) : null; }
 function setMe(sid, pid) {
   if (pid == null) localStorage.removeItem(meKey(sid));
   else localStorage.setItem(meKey(sid), String(pid));
 }
+function getTheme() { return localStorage.getItem(themeKey) || "douyin"; }
+function setTheme(k) { localStorage.setItem(themeKey, k); applyTheme(k); }
+function getLogin() { return localStorage.getItem(loginKey) || null; }
+function setLogin(name) {
+  if (!name) localStorage.removeItem(loginKey);
+  else localStorage.setItem(loginKey, name);
+  state.loginName = name;
+}
 
-/* ---------------- net ---------------- */
+function applyTheme(key) {
+  const t = THEMES.find(x => x.key === key) || THEMES[0];
+  document.body.setAttribute("data-theme", t.key);
+  $("#topbar-title").textContent = t.title;
+  // Update home hero if visible
+  const heroEmoji = $("#hero-emoji");
+  if (heroEmoji) heroEmoji.textContent = t.hero;
+  const heroTitle = $("#hero-title");
+  if (heroTitle) heroTitle.textContent = t.heroTitle;
+  const heroSub = $("#hero-sub");
+  if (heroSub) heroSub.textContent = t.heroSub;
+}
+
+/* ============== api ============== */
 async function api(path, opts = {}) {
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...opts,
+    headers: { "Content-Type": "application/json" }, ...opts,
   });
   if (!res.ok) {
     let msg = "请求失败";
@@ -53,7 +75,7 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-/* ---------------- ui helpers ---------------- */
+/* ============== ui helpers ============== */
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso.replace(" ", "T"));
@@ -79,13 +101,61 @@ function toast(msg) {
   el.className = "toast";
   el.textContent = msg;
   stack.appendChild(el);
-  setTimeout(() => el.remove(), 2700);
+  setTimeout(() => el.remove(), 2900);
 }
 function stopPolling() {
-  if (state.pollTimer) {
-    clearInterval(state.pollTimer);
-    state.pollTimer = null;
+  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+}
+function maLabel(amount) {
+  const i = state.config.amounts.indexOf(amount);
+  return i >= 0 ? state.config.amount_labels[i] : `${amount} 块`;
+}
+
+/* ============== confetti ============== */
+const COLORS = ["#ff2e63", "#25f4ee", "#b14bff", "#ffd23f", "#06ffa5", "#ff9b3f", "#ff66c4"];
+function confetti(burst = 36) {
+  const stage = $("#confetti-stage");
+  for (let i = 0; i < burst; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti-piece";
+    const left = Math.random() * 100;
+    const dx = (Math.random() - 0.5) * 200;
+    const dur = 1.6 + Math.random() * 1.6;
+    const delay = Math.random() * 0.2;
+    el.style.left = left + "vw";
+    el.style.setProperty("--dx", dx + "px");
+    el.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+    el.style.animationDuration = dur + "s";
+    el.style.animationDelay = delay + "s";
+    stage.appendChild(el);
+    setTimeout(() => el.remove(), (dur + delay) * 1000 + 50);
   }
+}
+
+/* ============== funny toast ============== */
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function toastForHand(h, players, isMe) {
+  const byId = Object.fromEntries(players.map(p => [p.id, p.name]));
+  const w = byId[h.winner_id];
+  const l = byId[h.loser_id];
+  if (h.kind === "huangzhuang")
+    return pickRandom(["🟡 黄庄，喘口气", "🟡 流局了，重新来", "🟡 黄庄，谁也没赢"]);
+  if (h.kind === "zimo") {
+    const total = h.amount * 3;
+    if (isMe) return pickRandom([
+      `🔥 牛！+${total}`, `🎉 +${total} 到账`, `✨ 自摸 +${total}，手感来了`,
+      `🤑 +${total}，再来一把`,
+    ]);
+    return pickRandom([
+      `😭 ${w} 又自摸 +${total}`, `💸 ${w} 自摸 +${total}`,
+      `🎉 ${w} 自摸了 +${total}`, `😱 ${w} +${total}！`,
+    ]);
+  }
+  if (h.kind === "gang_chagang") return isMe ? `⚡ 我插杠 +3` : `⚡ ${w} 插杠 +3`;
+  if (h.kind === "gang_angang")  return isMe ? `⚡ 我暗杠 +6` : `⚡ ${w} 暗杠 +6`;
+  if (h.kind === "gang_others")  return isMe ? `⚡ 我杠了 ${l}！+3` : `⚡ ${w} 杠了 ${l}`;
+  return "";
 }
 
 /* ============================================================
@@ -96,13 +166,14 @@ async function showHome() {
   state.sessionId = null;
   state.data = null;
   state.lastSeenHandIds = new Set();
+  state.prevBalances = {};
   stopPolling();
   mount("tpl-home");
+  applyTheme(getTheme());
 
   $("#btn-create").onclick = async () => {
     const { id } = await api("/api/sessions", {
-      method: "POST",
-      body: JSON.stringify({}),
+      method: "POST", body: JSON.stringify({}),
     });
     showSession(id);
   };
@@ -123,8 +194,8 @@ async function showHome() {
     const players = s.players.map(p => p.name).join(" · ");
     div.innerHTML = `
       <div style="min-width:0; flex:1">
-        <div class="title">${s.name} ${status}</div>
-        <div class="meta">${players} · ${s.hand_count} 盘 · ${fmtTime(s.created_at)}</div>
+        <div class="title">${escape(s.name)} ${status}</div>
+        <div class="meta">${escape(players)} · ${s.hand_count} 盘 · ${fmtTime(s.created_at)}</div>
       </div>
       <div style="display:flex; gap:6px; flex-shrink:0">
         <button class="ghost" data-act="open">打开</button>
@@ -141,30 +212,46 @@ async function showHome() {
   }
 }
 
+function escape(s) {
+  return String(s).replace(/[&<>"]/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
+  );
+}
+
 /* ============================================================
-   PICK ME (one-time per session per device)
+   PICK ME
 ============================================================ */
 function showPickMe(sessionData) {
   mount("tpl-pick-me");
+  applyTheme(getTheme());
   const grid = $("#pick-me-grid");
   grid.innerHTML = "";
   sessionData.players.forEach((p, i) => {
     const el = document.createElement("div");
     el.className = "pick";
-    el.innerHTML = `${p.name}<span class="seat">${SEAT_NAMES[i]}家</span>`;
+    el.innerHTML = `${escape(p.name)}<span class="seat">${SEAT_NAMES[i]}家</span>`;
     el.onclick = () => {
       setMe(sessionData.id, p.id);
+      // remember this name as login (for "login by name" feature)
+      setLogin(p.name);
       state.myPlayerId = p.id;
-      renderSession(sessionData);
-      startPolling();
+      proceedSession(sessionData);
     };
     grid.appendChild(el);
   });
+
+  $("#pick-me-login").onclick = () => openLoginModal(sessionData);
   $("#pick-me-skip").onclick = () => {
     state.myPlayerId = null;
-    renderSession(sessionData);
-    startPolling();
+    proceedSession(sessionData);
   };
+}
+
+function proceedSession(data) {
+  mount("tpl-session");
+  applyTheme(getTheme());
+  renderSession(data);
+  startPolling();
 }
 
 /* ============================================================
@@ -174,6 +261,7 @@ async function showSession(sid) {
   state.view = "session";
   state.sessionId = sid;
   state.lastSeenHandIds = new Set();
+  state.prevBalances = {};
   state.selectedAmount = state.config.amounts[0];
   stopPolling();
 
@@ -181,20 +269,28 @@ async function showSession(sid) {
   state.data = data;
   state.myPlayerId = getMe(sid);
 
+  // Try login by saved name → match a player
+  if (state.myPlayerId == null && state.loginName) {
+    const match = data.players.find(p =>
+      p.name.toLowerCase() === state.loginName.toLowerCase()
+    );
+    if (match) {
+      state.myPlayerId = match.id;
+      setMe(sid, match.id);
+    }
+  }
+
   if (state.myPlayerId == null) {
     showPickMe(data);
     return;
   }
-  // verify the stored player still exists on this session
   if (!data.players.find(p => p.id === state.myPlayerId)) {
     setMe(sid, null);
     showPickMe(data);
     return;
   }
 
-  mount("tpl-session");
-  renderSession(data);
-  startPolling();
+  proceedSession(data);
 }
 
 function startPolling() {
@@ -205,45 +301,29 @@ function startPolling() {
       const data = await api(`/api/sessions/${state.sessionId}`);
       const prevIds = state.lastSeenHandIds;
       const currIds = new Set(data.hands.map(h => h.id));
-      // detect newly added hands (not from our own immediate action)
       const newOnes = data.hands.filter(h => !prevIds.has(h.id));
       state.data = data;
       renderSession(data);
-      // toast for new hands made by others (skip on first poll)
       if (prevIds.size > 0) {
         for (const h of newOnes.reverse()) {
-          toast(handToast(h, data.players));
+          const isMe = h.winner_id === state.myPlayerId;
+          toast(toastForHand(h, data.players, isMe));
         }
       }
       state.lastSeenHandIds = currIds;
-    } catch (e) {
-      // swallow polling errors quietly
-    }
+    } catch {}
   }, 2000);
 }
 
-function handToast(h, players) {
-  const byId = Object.fromEntries(players.map(p => [p.id, p.name]));
-  if (h.kind === "huangzhuang") return "🟡 黄庄";
-  if (h.kind === "zimo") return `🎉 ${byId[h.winner_id]} 自摸 +${h.amount * 3}`;
-  if (h.kind === "gang_chagang") return `⚡ ${byId[h.winner_id]} 插杠 +3`;
-  if (h.kind === "gang_angang") return `⚡ ${byId[h.winner_id]} 暗杠 +6`;
-  if (h.kind === "gang_others") return `⚡ ${byId[h.winner_id]} 杠 ${byId[h.loser_id]} +3`;
-  return "";
-}
-
 function renderSession(s) {
-  // Topbar title
-  $("#topbar-title").textContent = `🀄 ${s.name}`;
+  $("#topbar-title").textContent = (THEMES.find(t => t.key === getTheme()) || THEMES[0]).title;
 
-  // Header
   $("#s-name").textContent = s.name + (s.ended_at ? "（已结束）" : "");
   $("#s-meta").textContent = `开局 ${fmtTime(s.created_at)} · 共 ${s.hands.length} 盘`;
 
-  // Me tag
   const me = s.players.find(p => p.id === state.myPlayerId);
   $("#me-tag").innerHTML = me
-    ? `我是 <b style="color:var(--cyan)">${me.name}</b> · <span class="edit-me" style="cursor:pointer; text-decoration:underline">换位</span>`
+    ? `我是 <b style="color:var(--accent-b)">${escape(me.name)}</b> · <span class="edit-me" style="cursor:pointer; text-decoration:underline">换位</span>`
     : `<span class="edit-me" style="cursor:pointer; text-decoration:underline">点这里选我是哪一家</span>`;
   $(".edit-me").onclick = () => {
     setMe(s.id, null);
@@ -251,7 +331,6 @@ function renderSession(s) {
     showPickMe(s);
   };
 
-  // End / reopen button
   const btnEnd = $("#btn-end");
   btnEnd.textContent = s.ended_at ? "重开" : "结束";
   btnEnd.onclick = async () => {
@@ -260,26 +339,31 @@ function renderSession(s) {
     } else {
       if (!confirm("结束本牌局？随时可重开。")) return;
       await api(`/api/sessions/${s.id}/end`, { method: "POST" });
+      // auto-show settlement after end
+      const fresh = await api(`/api/sessions/${s.id}`);
+      state.data = fresh;
+      renderSession(fresh);
+      openSettlement(fresh);
+      return;
     }
     refreshOnce();
   };
   $("#btn-settle").onclick = () => openSettlement(s);
 
-  // Balances + streaks
+  // Balances
   const bals = $("#balances");
   bals.innerHTML = "";
   s.balances.forEach((b, i) => {
-    const cls =
-      b.balance > 0 ? "win" : b.balance < 0 ? "lose" : "flat";
+    const cls = b.balance > 0 ? "win" : b.balance < 0 ? "lose" : "flat";
     const meCls = b.player_id === state.myPlayerId ? " me" : "";
     const sign = b.balance > 0 ? "+" : "";
     const div = document.createElement("div");
     div.className = `bal ${cls}${meCls}`;
     let streakHtml = `<div class="streak none">—</div>`;
     if (b.streak.kind === "win" && b.streak.count > 1) {
-      streakHtml = `<div class="streak win">🔥 连胜 ${b.streak.count}</div>`;
+      streakHtml = `<div class="streak win"><span class="icon">🔥</span> 连胜 ${b.streak.count}</div>`;
     } else if (b.streak.kind === "lose" && b.streak.count > 1) {
-      streakHtml = `<div class="streak lose">💧 连败 ${b.streak.count}</div>`;
+      streakHtml = `<div class="streak lose"><span class="icon">💧</span> 连败 ${b.streak.count}</div>`;
     } else if (b.streak.kind === "win") {
       streakHtml = `<div class="streak win">刚赢</div>`;
     } else if (b.streak.kind === "lose") {
@@ -288,7 +372,7 @@ function renderSession(s) {
     div.innerHTML = `
       <div class="name">
         <span class="seat">${SEAT_NAMES[i]}</span>
-        <span class="pname">${b.name}</span>
+        <span class="pname">${escape(b.name)}</span>
         ${b.player_id === state.myPlayerId ? '<span class="me-badge">我</span>' : ''}
         <span class="edit" data-pid="${b.player_id}">改名</span>
       </div>
@@ -303,29 +387,38 @@ function renderSession(s) {
       const trimmed = next.trim();
       if (!trimmed || trimmed === cur) return;
       api(`/api/sessions/${s.id}/players/${b.player_id}`, {
-        method: "PUT",
-        body: JSON.stringify({ name: trimmed }),
-      }).then(refreshOnce);
+        method: "PUT", body: JSON.stringify({ name: trimmed }),
+      }).then(() => {
+        // if I renamed myself, update login
+        if (b.player_id === state.myPlayerId) setLogin(trimmed);
+        refreshOnce();
+      });
     };
+    // pulse if changed
+    const prev = state.prevBalances[b.player_id];
+    if (prev != null && prev !== b.balance) {
+      div.classList.add("bumping");
+      setTimeout(() => div.classList.remove("bumping"), 600);
+    }
     bals.appendChild(div);
+    state.prevBalances[b.player_id] = b.balance;
   });
 
   // Amount strip
   const strip = $("#amount-strip");
   strip.innerHTML = "";
-  for (const v of state.config.amounts) {
+  state.config.amounts.forEach((v, i) => {
     const el = document.createElement("div");
     el.className = "a" + (state.selectedAmount === v ? " selected" : "");
-    el.textContent = v;
+    el.innerHTML = `<span class="v">${state.config.amount_labels[i]}</span><span class="m">${v}块</span>`;
     el.onclick = () => {
       state.selectedAmount = v;
       $$("#amount-strip .a").forEach(n => n.classList.remove("selected"));
       el.classList.add("selected");
     };
     strip.appendChild(el);
-  }
+  });
 
-  // Record actions
   const btnZimo = $("#btn-zimo");
   const btnHuang = $("#btn-huang");
   const btnUndo = $("#btn-undo");
@@ -344,35 +437,19 @@ function renderSession(s) {
   }
 
   btnZimo.onclick = () => {
-    if (state.myPlayerId == null) {
-      toast("先点上方「选我是哪一家」");
-      return;
-    }
-    addHand({
-      kind: "zimo",
-      winner_id: state.myPlayerId,
-      amount: state.selectedAmount,
-    });
+    if (state.myPlayerId == null) { toast("先点上方「选我是哪一家」"); return; }
+    addHand({ kind: "zimo", winner_id: state.myPlayerId, amount: state.selectedAmount });
   };
 
   for (const g of gangBtns) {
     g.onclick = () => {
       const act = g.dataset.act;
-      if (state.myPlayerId == null) {
-        toast("先点上方「选我是哪一家」");
-        return;
-      }
+      if (state.myPlayerId == null) { toast("先点上方「选我是哪一家」"); return; }
       if (act === "gang_others_pick") {
         openPickModal({
           title: "我杠了谁？",
           choices: s.players.filter(p => p.id !== state.myPlayerId),
-          onOk: (pid) => {
-            addHand({
-              kind: "gang_others",
-              winner_id: state.myPlayerId,
-              loser_id: pid,
-            });
-          },
+          onOk: (pid) => addHand({ kind: "gang_others", winner_id: state.myPlayerId, loser_id: pid }),
         });
       } else {
         addHand({ kind: act, winner_id: state.myPlayerId });
@@ -385,9 +462,7 @@ function renderSession(s) {
       title: "谁赢了？",
       choices: s.players,
       withAmount: true,
-      onOk: (pid, amt) => {
-        addHand({ kind: "zimo", winner_id: pid, amount: amt });
-      },
+      onOk: (pid, amt) => addHand({ kind: "zimo", winner_id: pid, amount: amt }),
     });
   };
 
@@ -397,10 +472,7 @@ function renderSession(s) {
   };
 
   btnUndo.onclick = async () => {
-    if (!lastHand) {
-      toast("还没有可撤销的记录");
-      return;
-    }
+    if (!lastHand) { toast("还没有可撤销的记录"); return; }
     if (!confirm("撤销最近一盘？")) return;
     await api(`/api/sessions/${s.id}/hands/${lastHand.id}`, { method: "DELETE" });
     refreshOnce();
@@ -419,30 +491,24 @@ function renderSession(s) {
     const div = document.createElement("div");
     let title = "", detail = "", amt = "";
     if (h.kind === "huangzhuang") {
-      div.className = "hand huang";
-      title = "黄庄";
-      detail = "流局";
-      amt = "—";
+      div.className = "hand huang"; title = "黄庄"; detail = "流局"; amt = "—";
     } else if (h.kind === "zimo") {
       div.className = "hand";
-      title = `<span class="winner">${w ? w.name : "?"}</span> 自摸`;
-      detail = `三家各 ${h.amount}`;
+      title = `<span class="winner">${escape(w?.name || "?")}</span> 自摸`;
+      detail = `${maLabel(h.amount)} · 三家各 ${h.amount}`;
       amt = `+${h.amount * 3}`;
     } else if (h.kind === "gang_chagang") {
       div.className = "hand gang";
-      title = `<span class="winner">${w ? w.name : "?"}</span> 插杠`;
-      detail = `三家各 1`;
-      amt = `+3`;
+      title = `<span class="winner">${escape(w?.name || "?")}</span> 插杠`;
+      detail = `三家各 1`; amt = `+3`;
     } else if (h.kind === "gang_angang") {
       div.className = "hand gang";
-      title = `<span class="winner">${w ? w.name : "?"}</span> 暗杠`;
-      detail = `三家各 2`;
-      amt = `+6`;
+      title = `<span class="winner">${escape(w?.name || "?")}</span> 暗杠`;
+      detail = `三家各 2`; amt = `+6`;
     } else if (h.kind === "gang_others") {
       div.className = "hand gang";
-      title = `<span class="winner">${w ? w.name : "?"}</span> 杠 ${l ? l.name : "?"}`;
-      detail = `${l ? l.name : "?"} 给 3`;
-      amt = `+3`;
+      title = `<span class="winner">${escape(w?.name || "?")}</span> 杠 ${escape(l?.name || "?")}`;
+      detail = `${escape(l?.name || "?")} 给 3`; amt = `+3`;
     }
     div.innerHTML = `
       <div class="left">
@@ -472,10 +538,12 @@ async function refreshOnce() {
 
 async function addHand(body) {
   await api(`/api/sessions/${state.sessionId}/hands`, {
-    method: "POST",
-    body: JSON.stringify(body),
+    method: "POST", body: JSON.stringify(body),
   });
-  // update lastSeen optimistically so we don't toast our own action
+  // Confetti for wins
+  if (body.kind === "zimo" || body.kind && body.kind.startsWith("gang_")) {
+    confetti(body.kind === "zimo" ? 50 : 24);
+  }
   await refreshOnce();
 }
 
@@ -510,26 +578,23 @@ function openPickModal({ title, choices, withAmount = false, onOk }) {
     $("#modal-amount", back).classList.remove("hidden");
     const strip = $("#modal-amount-strip", back);
     strip.innerHTML = "";
-    for (const v of state.config.amounts) {
+    state.config.amounts.forEach((v, i) => {
       const el = document.createElement("div");
       el.className = "a" + (amt === v ? " selected" : "");
-      el.textContent = v;
+      el.innerHTML = `<span class="v">${state.config.amount_labels[i]}</span><span class="m">${v}块</span>`;
       el.onclick = () => {
         amt = v;
         $$(".a", strip).forEach(n => n.classList.remove("selected"));
         el.classList.add("selected");
       };
       strip.appendChild(el);
-    }
+    });
   }
 
   const close = () => back.remove();
   $("#modal-cancel", back).onclick = close;
-  $("#modal-ok", back).onclick = async () => {
-    if (selected == null) {
-      toast("请选一个");
-      return;
-    }
+  $("#modal-ok", back).onclick = () => {
+    if (selected == null) { toast("请选一个"); return; }
     close();
     onOk(selected, amt);
   };
@@ -540,13 +605,11 @@ function openPickModal({ title, choices, withAmount = false, onOk }) {
 ============================================================ */
 function openSettlement(s) {
   const tpl = document.getElementById("tpl-modal-settle");
-  const node = tpl.content.cloneNode(true);
-  document.body.appendChild(node);
+  document.body.appendChild(tpl.content.cloneNode(true));
   const back = document.body.lastElementChild;
 
-  const total = s.hands.length;
   $("#settle-summary", back).textContent =
-    `共 ${total} 盘 · 谁转给谁，转完账就两清`;
+    `共 ${s.hands.length} 盘 · 谁转给谁，转完两清`;
 
   const list = $("#settle-list", back);
   list.innerHTML = "";
@@ -558,23 +621,196 @@ function openSettlement(s) {
       row.className = "settle-row";
       row.innerHTML = `
         <div class="who">
-          <span class="from">${t.from}</span>
+          <span class="from">${escape(t.from)}</span>
           <span class="arrow">→</span>
-          <span class="to">${t.to}</span>
+          <span class="to">${escape(t.to)}</span>
         </div>
         <div class="amt">${t.amount} 块</div>
       `;
       list.appendChild(row);
     }
   }
-
   $("#settle-close", back).onclick = () => back.remove();
+}
+
+/* ============================================================
+   MODAL: theme
+============================================================ */
+function openThemeModal() {
+  const tpl = document.getElementById("tpl-modal-theme");
+  document.body.appendChild(tpl.content.cloneNode(true));
+  const back = document.body.lastElementChild;
+  const grid = $("#theme-grid", back);
+  const cur = getTheme();
+  grid.innerHTML = "";
+  for (const t of THEMES) {
+    const el = document.createElement("div");
+    el.className = "theme-card" + (cur === t.key ? " active" : "");
+    // Render preview tile with its primary gradient
+    el.style.background = previewBg(t.key);
+    el.innerHTML = `<div class="emoji">${t.emoji}</div><div class="name">${t.name}</div>`;
+    el.onclick = () => {
+      setTheme(t.key);
+      $$(".theme-card", grid).forEach(n => n.classList.remove("active"));
+      el.classList.add("active");
+      confetti(20);
+    };
+    grid.appendChild(el);
+  }
+  $("#theme-close", back).onclick = () => back.remove();
+}
+function previewBg(k) {
+  switch (k) {
+    case "douyin": return "linear-gradient(135deg, #ff2e63, #b14bff 50%, #25f4ee)";
+    case "bp":     return "linear-gradient(135deg, #ff0080, #000 50%, #ff0080)";
+    case "bad":    return "linear-gradient(135deg, #4ade80, #16a34a 60%, #facc15)";
+    case "foot":   return "linear-gradient(135deg, #fff, #16a34a 50%, #fff)";
+    case "mj":     return "linear-gradient(135deg, #c0392b, #b8860b 50%, #2a8a4a)";
+    default: return "";
+  }
+}
+
+/* ============================================================
+   MODAL: login by name
+============================================================ */
+async function openLoginModal(returnSessionData) {
+  const tpl = document.getElementById("tpl-modal-login");
+  document.body.appendChild(tpl.content.cloneNode(true));
+  const back = document.body.lastElementChild;
+
+  const input = $("#login-input", back);
+  input.value = state.loginName || "";
+
+  // load known names
+  let globals = [];
+  try { globals = await api("/api/players_global"); } catch {}
+  const list = $("#login-list", back);
+  list.innerHTML = "";
+  if (!globals.length) {
+    list.innerHTML = `<div class="muted small">还没有记录的玩家</div>`;
+  } else {
+    for (const g of globals) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = g.name;
+      chip.onclick = () => { input.value = g.name; submit(); };
+      list.appendChild(chip);
+    }
+  }
+
+  const submit = () => {
+    const name = input.value.trim();
+    if (!name) { toast("请输入名字"); return; }
+    setLogin(name);
+    back.remove();
+    if (returnSessionData) {
+      // try to match a player on this session
+      const match = returnSessionData.players.find(p =>
+        p.name.toLowerCase() === name.toLowerCase()
+      );
+      if (match) {
+        setMe(returnSessionData.id, match.id);
+        state.myPlayerId = match.id;
+        proceedSession(returnSessionData);
+      } else {
+        toast(`「${name}」不在本局玩家里，下次自动认你`);
+      }
+    } else {
+      toast(`记住你了：${name}`);
+    }
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+  $("#login-cancel", back).onclick = () => back.remove();
+}
+
+/* ============================================================
+   LEADERBOARD
+============================================================ */
+async function showLeaderboard() {
+  state.view = "leaderboard";
+  state.sessionId = null;
+  stopPolling();
+  mount("tpl-leaderboard");
+  applyTheme(getTheme());
+
+  const rows = await api("/api/leaderboard");
+  const list = $("#leaderboard");
+  list.innerHTML = "";
+  if (!rows.length) {
+    list.innerHTML = `<div class="muted small">还没有任何战绩。开一局吧。</div>`;
+    return;
+  }
+  rows.forEach((r, i) => {
+    const sign = r.total_balance > 0 ? "+" : "";
+    const cls = r.total_balance > 0 ? "pos" : r.total_balance < 0 ? "neg" : "flat";
+    const div = document.createElement("div");
+    const topCls = i < 3 ? ` top${i + 1}` : "";
+    div.className = `lb-row${topCls}`;
+    div.innerHTML = `
+      <div class="rank">${i < 3 ? ["🥇","🥈","🥉"][i] : i + 1}</div>
+      <div>
+        <div class="name">${escape(r.name)}</div>
+        <div class="meta">${r.sessions} 局 · 自摸 ${r.zimo} · 杠 ${r.gang} · 胜率 ${(r.win_rate * 100).toFixed(0)}%</div>
+      </div>
+      <div class="bal ${cls}">${sign}${r.total_balance}</div>
+    `;
+    div.onclick = () => showPlayer(r.global_id);
+    list.appendChild(div);
+  });
+}
+
+async function showPlayer(gid) {
+  state.view = "player";
+  stopPolling();
+  mount("tpl-player");
+  applyTheme(getTheme());
+
+  const data = await api(`/api/players_global/${gid}`);
+  $("#pd-name").textContent = `🎴 ${data.name}`;
+  const s = data.stats || { total_balance: 0, sessions: 0, hands_played: 0, wins: 0, zimo: 0, gang: 0, max_win: 0, win_rate: 0 };
+  const sign = s.total_balance > 0 ? "+" : "";
+  const cls = s.total_balance > 0 ? "pos" : s.total_balance < 0 ? "neg" : "";
+  $("#pd-stats").innerHTML = `
+    <div class="pd-stat"><div class="lab">累计</div><div class="val ${cls}">${sign}${s.total_balance}</div></div>
+    <div class="pd-stat"><div class="lab">局数</div><div class="val">${s.sessions}</div></div>
+    <div class="pd-stat"><div class="lab">自摸</div><div class="val">${s.zimo}</div></div>
+    <div class="pd-stat"><div class="lab">杠</div><div class="val">${s.gang}</div></div>
+    <div class="pd-stat"><div class="lab">胜率</div><div class="val">${(s.win_rate * 100).toFixed(0)}%</div></div>
+    <div class="pd-stat"><div class="lab">最高单盘</div><div class="val">${s.max_win || 0}</div></div>
+  `;
+
+  const list = $("#pd-history");
+  list.innerHTML = "";
+  if (!data.history.length) {
+    list.innerHTML = `<div class="muted small">还没有参加过牌局。</div>`;
+    return;
+  }
+  for (const h of data.history) {
+    const sign = h.balance > 0 ? "+" : "";
+    const cls = h.balance > 0 ? "pos" : h.balance < 0 ? "neg" : "";
+    const row = document.createElement("div");
+    row.className = "pd-history-row";
+    row.innerHTML = `
+      <div class="left">
+        <div><b>${escape(h.session_name)}</b> ${h.session_ended ? '<span class="muted small">已结束</span>' : ''}</div>
+        <div class="when">${fmtTime(h.session_created)} · ${h.hand_count} 盘 · 当时叫「${escape(h.name_in_session)}」</div>
+      </div>
+      <div class="bal ${cls}">${sign}${h.balance}</div>
+    `;
+    row.onclick = () => showSession(h.session_id);
+    list.appendChild(row);
+  }
 }
 
 /* ============================================================
    Boot
 ============================================================ */
 $("#btn-home").onclick = () => showHome();
+$("#btn-theme").onclick = () => openThemeModal();
+$("#btn-leaderboard").onclick = () => showLeaderboard();
 
 (async function init() {
   try {
@@ -582,5 +818,7 @@ $("#btn-home").onclick = () => showHome();
     state.config = { ...state.config, ...cfg };
     state.selectedAmount = state.config.amounts[0];
   } catch {}
+  state.loginName = getLogin();
+  applyTheme(getTheme());
   showHome();
 })();
