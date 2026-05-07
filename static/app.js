@@ -5,11 +5,12 @@ const app = $("#app");
 const SEAT_NAMES = ["东", "南", "西", "北"];
 
 const THEMES = [
-  { key: "douyin", name: "默认",      emoji: "🎵", title: "🎵 麻将",  hero: "🀄", heroTitle: "来一局？",         heroSub: "点下面，立刻开始" },
-  { key: "bp",     name: "BLACKPINK", emoji: "🖤💖", title: "🖤💖 麻将", hero: "💖", heroTitle: "BORN PINK 局",     heroSub: "DDU-DU 来打个麻将" },
-  { key: "bad",    name: "羽毛球",    emoji: "🏸", title: "🏸 麻将",  hero: "🏸", heroTitle: "上场！",             heroSub: "杀球 / 网前 / 自摸" },
-  { key: "foot",   name: "足球",      emoji: "⚽", title: "⚽ 麻将",  hero: "⚽", heroTitle: "开球！",             heroSub: "进球就是自摸" },
-  { key: "mj",     name: "麻将",      emoji: "🀄", title: "🀄 麻将",  hero: "🀄", heroTitle: "搓一把",             heroSub: "正宗中国风" },
+  { key: "neon",    name: "霓光黑", emoji: "🌃", title: "🌃 麻将",    hero: "🀄", heroTitle: "霓光夜局",       heroSub: "赛博朋克 · 麻将" },
+  { key: "green",   name: "自然绿", emoji: "🌿", title: "🌿 麻将",    hero: "🀄", heroTitle: "搓一把",         heroSub: "正宗中国风" },
+  { key: "bamboo",  name: "竹韵绿", emoji: "🎋", title: "🎋 麻将",    hero: "🎋", heroTitle: "竹影摇曳",       heroSub: "清新如新茶" },
+  { key: "purple",  name: "暮夜紫", emoji: "🌌", title: "🌌 麻将",    hero: "🏮", heroTitle: "灯火夜",         heroSub: "千灯映夜" },
+  { key: "orange",  name: "夕阳橙", emoji: "🌅", title: "🌅 麻将",    hero: "🌅", heroTitle: "落日局",         heroSub: "山间黄昏" },
+  { key: "bp",      name: "BLACKPINK", emoji: "🖤💖", title: "🖤💖 麻将", hero: "💖", heroTitle: "BORN PINK 局", heroSub: "DDU-DU 来打个麻将" },
 ];
 
 const state = {
@@ -40,7 +41,11 @@ function setMe(sid, pid) {
   if (pid == null) localStorage.removeItem(meKey(sid));
   else localStorage.setItem(meKey(sid), String(pid));
 }
-function getTheme() { return localStorage.getItem(themeKey) || "douyin"; }
+function getTheme() {
+  const v = localStorage.getItem(themeKey);
+  if (v && THEMES.find(t => t.key === v)) return v;
+  return "neon";
+}
 function setTheme(k) { localStorage.setItem(themeKey, k); applyTheme(k); }
 function getLogin() { return localStorage.getItem(loginKey) || null; }
 function setLogin(name) {
@@ -115,9 +120,12 @@ function buzz(ms = 15) {
   }
 }
 
+const LIGHT_CARD_THEMES = new Set(["green", "bamboo", "orange"]);
+
 function applyTheme(key) {
   const t = THEMES.find(x => x.key === key) || THEMES[0];
   document.body.setAttribute("data-theme", t.key);
+  document.body.classList.toggle("lightcards", LIGHT_CARD_THEMES.has(t.key));
   $("#topbar-title").textContent = t.title;
   // Update home hero if visible
   const heroEmoji = $("#hero-emoji");
@@ -574,11 +582,11 @@ function renderSession(s) {
     state.prevBalances[b.player_id] = b.balance;
   });
 
-  // table-center decoration for diamond mode
+  // table-center decoration for diamond mode (cream 中 tile)
   if (useDiamond) {
     const center = document.createElement("div");
     center.className = "table-center";
-    center.textContent = "🀄";
+    center.innerHTML = `<div class="zhong">中</div>`;
     bals.appendChild(center);
   }
 
@@ -893,11 +901,12 @@ function openThemeModal() {
 }
 function previewBg(k) {
   switch (k) {
-    case "douyin": return "linear-gradient(135deg, #ff2e63, #b14bff 50%, #25f4ee)";
-    case "bp":     return "linear-gradient(135deg, #ff0080, #000 50%, #ff0080)";
-    case "bad":    return "linear-gradient(135deg, #4ade80, #16a34a 60%, #facc15)";
-    case "foot":   return "linear-gradient(135deg, #fff, #16a34a 50%, #fff)";
-    case "mj":     return "linear-gradient(135deg, #c0392b, #b8860b 50%, #2a8a4a)";
+    case "neon":   return "linear-gradient(135deg, #ec4899, #a855f7 50%, #22d3ee)";
+    case "green":  return "linear-gradient(180deg, #2a8a4a 0%, #1d4f3a 100%)";
+    case "bamboo": return "linear-gradient(180deg, #c8dcb8 0%, #8fbb70 100%)";
+    case "purple": return "linear-gradient(180deg, #4c3a78 0%, #2d1f47 100%)";
+    case "orange": return "linear-gradient(180deg, #ffb56b 0%, #ff7a3d 100%)";
+    case "bp":     return "linear-gradient(135deg, #ff59c7, #000 50%, #ff59c7)";
     default: return "";
   }
 }

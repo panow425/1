@@ -683,115 +683,227 @@ body[data-theme="bp"] .chip-btn {
 }
 body[data-theme="bp"] .streak.win { color: #ff94e0; }
 
-/* --- BADMINTON --- */
-body[data-theme="bad"] {
-  --bg: #0d2818;
-  --panel: rgba(20, 50, 35, 0.85);
-  --panel-2: rgba(28, 65, 45, 0.7);
-  --accent-a: #4ade80;
-  --accent-b: #ffffff;
-  --accent-c: #facc15;
-  --gold: #facc15;
-  --green: #86efac;
-  --primary-grad: linear-gradient(135deg, #4ade80, #16a34a 60%, #facc15);
-  --title-grad:   linear-gradient(90deg, #fff, #4ade80 50%, #facc15);
-  --hero-grad:    linear-gradient(120deg, #facc15, #fff 50%, #4ade80);
-  --bg-blob-1:    radial-gradient(ellipse at 50% 0%, rgba(74,222,128,0.25), transparent 70%);
-  --bg-blob-2:    radial-gradient(ellipse at 0% 100%, rgba(255,255,255,0.08), transparent 60%);
-  --bg-blob-3:    radial-gradient(ellipse at 100% 100%, rgba(250,204,21,0.18), transparent 60%);
-  /* Court lines */
-  --bg-pattern:
-    linear-gradient(transparent 49%, rgba(255,255,255,0.4) 49.6%, rgba(255,255,255,0.4) 50.4%, transparent 50.6%),
-    linear-gradient(90deg, transparent 49%, rgba(255,255,255,0.4) 49.6%, rgba(255,255,255,0.4) 50.4%, transparent 50.6%);
-  background-size: 100% 50vh, 50vw 100%;
-}
-body[data-theme="bad"] .hero-emoji { animation: bad-fly 1.6s ease-in-out infinite; }
-@keyframes bad-fly {
-  0%,100% { transform: translate(0,0) rotate(0deg); }
-  25%     { transform: translate(-10px,-12px) rotate(-15deg); }
-  75%     { transform: translate(10px,-12px) rotate(15deg); }
+/* ============================================================
+   THE 中 TILE (center of diamond)
+============================================================ */
+.table-center .zhong {
+  width: 44px; height: 56px;
+  background: linear-gradient(180deg, #fefcf2 0%, #ede0c0 100%);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: "STKaiti", "KaiTi", "PingFang SC", serif;
+  font-size: 28px; font-weight: 900;
+  color: #c0392b;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4),
+              inset 0 1px 0 rgba(255,255,255,0.7),
+              inset 0 -2px 0 rgba(180,140,60,0.35);
+  border: 1px solid rgba(0,0,0,0.12);
+  user-select: none;
 }
 
-/* --- FOOTBALL --- */
-body[data-theme="foot"] {
-  --bg: #0a3d1e;
-  --panel: rgba(15, 60, 30, 0.85);
-  --panel-2: rgba(20, 75, 38, 0.7);
-  --accent-a: #ffffff;
-  --accent-b: #facc15;
-  --accent-c: #22c55e;
-  --gold: #facc15;
-  --primary-grad: linear-gradient(135deg, #fff, #16a34a 50%, #fff);
-  --title-grad:   linear-gradient(90deg, #fff, #facc15 50%, #fff);
-  --hero-grad:    linear-gradient(120deg, #facc15, #fff 50%, #22c55e);
-  --bg-blob-1:    radial-gradient(ellipse at 50% 50%, rgba(34,197,94,0.35), transparent 70%);
-  --bg-blob-2:    none;
-  --bg-blob-3:    none;
-  /* Pitch stripes */
-  --bg-pattern: repeating-linear-gradient(
-    180deg,
-    rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 60px,
-    transparent 60px, transparent 120px
-  );
+/* Helper: swap to light cards (for green/bamboo/orange themes) */
+body.lightcards .card,
+body.lightcards .session-item,
+body.lightcards .bal,
+body.lightcards .action,
+body.lightcards .amount-strip .a,
+body.lightcards .pick-me-grid .pick,
+body.lightcards .lb-row,
+body.lightcards .pd-stat,
+body.lightcards .pd-history-row,
+body.lightcards .settle-row,
+body.lightcards .hand,
+body.lightcards .modal,
+body.lightcards .modal-grid .pick {
+  background: linear-gradient(180deg, #fefcf2 0%, #f0e6c8 100%);
+  color: #1a1a1a;
+  border: 1px solid rgba(120, 90, 30, 0.18);
+  box-shadow: 0 2px 0 rgba(180, 150, 80, 0.3), 0 4px 8px rgba(0,0,0,0.18);
+  border-radius: 12px;
 }
-body[data-theme="foot"] .hero-emoji { animation: foot-spin 1.8s linear infinite; }
-@keyframes foot-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
+body.lightcards input { background: #fff; color: #1a1a1a; border-color: rgba(120,90,30,0.3); }
+body.lightcards .muted { color: #6b6354; }
+body.lightcards .bal .name .seat { color: #6b6354; }
+body.lightcards .bal .name .edit { color: #6b6354; }
+body.lightcards .hand .when { color: #6b6354; }
 
-/* --- MAHJONG --- */
-body[data-theme="mj"] {
-  --bg: #0e3b22;
-  --panel: rgba(245, 235, 208, 0.92);
-  --panel-2: rgba(255, 250, 230, 0.95);
-  --line: rgba(0, 0, 0, 0.08);
-  --text: #1a1a1a;
-  --muted: #6b6354;
-  --accent-a: #c0392b;
-  --accent-b: #2a8a4a;
+/* === 自然绿 === */
+body[data-theme="green"] {
+  --bg: #1d4f3a;
+  --text: #f5ebd0;
+  --muted: rgba(245, 235, 208, 0.7);
+  --line: rgba(245, 235, 208, 0.18);
+  --accent-a: #2a8a4a;
+  --accent-b: #b8860b;
   --accent-c: #c0392b;
   --gold: #b8860b;
   --green: #2a8a4a;
-  --red: #c0392b;
-  --primary-grad: linear-gradient(135deg, #c0392b, #8b1e1e);
-  --title-grad:   linear-gradient(90deg, #b8860b, #c0392b 60%, #2a8a4a);
+  --red:   #c0392b;
+  --primary-grad: linear-gradient(135deg, #a8d5a8 0%, #6fa66f 100%);
+  --title-grad:   linear-gradient(90deg, #f5ebd0 0%, #fefcf2 100%);
   --hero-grad:    linear-gradient(120deg, #c0392b, #b8860b 50%, #2a8a4a);
-  --bg-blob-1:    radial-gradient(ellipse at 50% 50%, rgba(43,138,74,0.5), transparent 70%);
-  --bg-blob-2:    none;
-  --bg-blob-3:    none;
-  --bg-pattern: repeating-linear-gradient(
-    45deg,
-    rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px,
-    transparent 1px, transparent 60px
-  );
+  --bg-blob-1: radial-gradient(ellipse at 50% 100%, rgba(43,138,74,0.35), transparent 70%);
+  --bg-blob-2: none;
+  --bg-blob-3: none;
+  --bg-pattern: repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 60px);
 }
-body[data-theme="mj"] .topbar { background: rgba(15, 60, 35, 0.92); }
-body[data-theme="mj"] .topbar .actions button { color: #f5ebd0; }
-body[data-theme="mj"] .card,
-body[data-theme="mj"] .modal,
-body[data-theme="mj"] .session-item,
-body[data-theme="mj"] .bal,
-body[data-theme="mj"] .action,
-body[data-theme="mj"] .amount-strip .a,
-body[data-theme="mj"] .pick-me-grid .pick,
-body[data-theme="mj"] .lb-row,
-body[data-theme="mj"] .pd-stat,
-body[data-theme="mj"] .pd-history-row,
-body[data-theme="mj"] .settle-row,
-body[data-theme="mj"] .hand {
-  border-radius: 8px;
-  background: linear-gradient(180deg, #fefcf2 0%, #f0e6c8 100%);
-  color: var(--text);
-  box-shadow: 0 2px 0 #c0a060, 0 4px 8px rgba(0,0,0,0.25);
-  border: 1px solid rgba(120, 90, 30, 0.25);
+body[data-theme="green"].lightcards .topbar { background: rgba(20, 50, 35, 0.92); }
+body[data-theme="green"] .topbar .actions button { color: #f5ebd0; }
+body[data-theme="green"] .toast { background: rgba(20, 50, 35, 0.95); color: #fefcf2; border-color: rgba(245,235,208,0.3); }
+body[data-theme="green"] button.primary { color: #1a3d1a; }
+
+/* === 竹韵绿 === */
+body[data-theme="bamboo"] {
+  --bg: #c8dcb8;
+  --text: #1f3622;
+  --muted: #5a6b51;
+  --line: rgba(40, 80, 30, 0.18);
+  --accent-a: #4a7a3e;
+  --accent-b: #b8860b;
+  --accent-c: #c0392b;
+  --gold: #b8860b;
+  --green: #4a7a3e;
+  --red:   #c0392b;
+  --primary-grad: linear-gradient(135deg, #a8d5a8, #6fa66f);
+  --title-grad: linear-gradient(90deg, #2a4a1f, #4a7a3e 60%, #b8860b);
+  --hero-grad: linear-gradient(120deg, #c0392b, #b8860b 50%, #4a7a3e);
+  --bg-blob-1: none;
+  --bg-blob-2: none;
+  --bg-blob-3: none;
+  /* bamboo silhouette stems on edges */
+  --bg-pattern:
+    radial-gradient(ellipse 80px 200px at 0% 30%, rgba(74,122,62,0.25), transparent 70%),
+    radial-gradient(ellipse 80px 200px at 100% 60%, rgba(74,122,62,0.22), transparent 70%),
+    radial-gradient(ellipse 60px 150px at 12% 80%, rgba(74,122,62,0.18), transparent 70%);
 }
-body[data-theme="mj"] .modal { background: linear-gradient(180deg, #fefcf2, #f0e6c8); color: var(--text); }
-body[data-theme="mj"] .input,
-body[data-theme="mj"] input { background: #fff; color: var(--text); border-color: rgba(120,90,30,0.3); }
-body[data-theme="mj"] .toast { background: rgba(20, 60, 35, 0.95); color: #fefcf2; }
-body[data-theme="mj"] .hero-emoji { animation: mj-flip 2s ease-in-out infinite; }
-@keyframes mj-flip {
-  0%,100% { transform: rotateY(0deg); }
-  50%     { transform: rotateY(360deg); }
+body[data-theme="bamboo"] .topbar { background: rgba(255,255,255,0.5); border-bottom-color: rgba(40,80,30,0.18); }
+body[data-theme="bamboo"] .topbar .actions button { color: #2a4a1f; }
+body[data-theme="bamboo"] .toast { background: rgba(31, 54, 34, 0.95); color: #fefcf2; border-color: rgba(74,122,62,0.4); }
+body[data-theme="bamboo"] button.primary { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+
+/* === 暮夜紫 === */
+body[data-theme="purple"] {
+  --bg: #2d1f47;
+  --panel: rgba(50, 35, 80, 0.7);
+  --panel-2: rgba(60, 45, 95, 0.65);
+  --line: rgba(200, 170, 255, 0.18);
+  --text: #f5e8ff;
+  --muted: rgba(200, 170, 255, 0.65);
+  --accent-a: #b14bff;
+  --accent-b: #ffd8a8;
+  --accent-c: #c0392b;
+  --gold: #ffd8a8;
+  --green: #6ee7b7;
+  --red:   #ff6b8a;
+  --primary-grad: linear-gradient(135deg, #b14bff 0%, #6b4ba0 50%, #4c3a78 100%);
+  --title-grad:   linear-gradient(90deg, #ffd8a8, #f5e8ff 50%, #b14bff);
+  --hero-grad:    linear-gradient(120deg, #ffd8a8, #f5e8ff 45%, #b14bff);
+  --bg-blob-1: radial-gradient(ellipse at 0% 0%, rgba(177,75,255,0.35), transparent 60%);
+  --bg-blob-2: radial-gradient(ellipse at 100% 100%, rgba(255,107,138,0.25), transparent 60%);
+  --bg-blob-3: radial-gradient(ellipse at 50% 100%, rgba(76,58,120,0.5), transparent 70%);
+  /* tiny stars sprinkled across the bg */
+  --bg-pattern:
+    radial-gradient(circle at 12% 18%, #fff 0 0.5px, transparent 1.2px),
+    radial-gradient(circle at 28% 42%, #fff 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 47% 22%, #fff 0 0.5px, transparent 1.2px),
+    radial-gradient(circle at 70% 35%, #fff 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 86% 14%, #fff 0 0.5px, transparent 1.2px),
+    radial-gradient(circle at 18% 70%, #fff 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 88% 70%, #fff 0 0.5px, transparent 1.2px);
+}
+
+/* === 夕阳橙 === */
+body[data-theme="orange"] {
+  --bg: #ffb56b;
+  --text: #1a1a1a;
+  --muted: #6b4f3a;
+  --line: rgba(120, 60, 20, 0.16);
+  --accent-a: #ff7a3d;
+  --accent-b: #c0392b;
+  --accent-c: #b8860b;
+  --gold: #b8860b;
+  --green: #2a8a4a;
+  --red:   #c0392b;
+  --primary-grad: linear-gradient(135deg, #ffd58a 0%, #ff7a3d 100%);
+  --title-grad:   linear-gradient(90deg, #c0392b, #ff7a3d 60%, #b8860b);
+  --hero-grad:    linear-gradient(120deg, #c0392b, #ff7a3d 45%, #ffd58a);
+  --bg-blob-1: linear-gradient(180deg, transparent 0%, rgba(255,150,80,0.45) 100%);
+  --bg-blob-2: none;
+  --bg-blob-3: none;
+  /* mountain silhouette near bottom */
+  --bg-pattern: none;
+}
+/* Mountain silhouette via .bg-pattern element */
+body[data-theme="orange"] .bg-pattern {
+  background:
+    linear-gradient(180deg, transparent 70%, rgba(180, 90, 50, 0.35) 100%),
+    radial-gradient(ellipse 200px 60px at 30% 92%, rgba(120, 60, 30, 0.5), transparent 70%),
+    radial-gradient(ellipse 240px 70px at 70% 90%, rgba(120, 60, 30, 0.45), transparent 70%),
+    radial-gradient(ellipse 180px 50px at 50% 95%, rgba(120, 60, 30, 0.55), transparent 70%);
+  opacity: 1;
+}
+body[data-theme="orange"] .topbar { background: rgba(255, 200, 140, 0.85); }
+body[data-theme="orange"] .topbar .actions button { color: #6b3a1f; }
+body[data-theme="orange"] .toast { background: rgba(60, 30, 10, 0.95); color: #fefcf2; }
+body[data-theme="orange"] button.primary { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+
+/* === 霓光黑 === */
+body[data-theme="neon"] {
+  --bg: #0a0a12;
+  --panel: rgba(18, 18, 28, 0.85);
+  --panel-2: rgba(25, 25, 38, 0.78);
+  --line: rgba(34, 211, 238, 0.18);
+  --text: #f5f6fa;
+  --muted: rgba(180, 200, 220, 0.55);
+  --accent-a: #ec4899;
+  --accent-b: #22d3ee;
+  --accent-c: #a855f7;
+  --gold: #fbbf24;
+  --green: #22d3ee;
+  --red:   #ec4899;
+  --primary-grad: linear-gradient(135deg, #ec4899 0%, #a855f7 50%, #22d3ee 100%);
+  --title-grad:   linear-gradient(90deg, #22d3ee, #ec4899 50%, #a855f7);
+  --hero-grad:    linear-gradient(120deg, #22d3ee, #fff 45%, #ec4899);
+  --bg-blob-1: radial-gradient(ellipse at 0% 0%, rgba(236, 72, 153, 0.18), transparent 55%);
+  --bg-blob-2: radial-gradient(ellipse at 100% 0%, rgba(34, 211, 238, 0.15), transparent 55%);
+  --bg-blob-3: radial-gradient(ellipse at 50% 100%, rgba(168, 85, 247, 0.18), transparent 60%);
+  --bg-pattern: none;
+}
+/* Neon glow on cards */
+body[data-theme="neon"] .bal,
+body[data-theme="neon"] .action,
+body[data-theme="neon"] .amount-strip .a,
+body[data-theme="neon"] .pick-me-grid .pick,
+body[data-theme="neon"] .modal-grid .pick,
+body[data-theme="neon"] .lb-row,
+body[data-theme="neon"] .pd-stat,
+body[data-theme="neon"] .pd-history-row,
+body[data-theme="neon"] .settle-row,
+body[data-theme="neon"] .hand,
+body[data-theme="neon"] .session-item {
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.10),
+              inset 0 0 0 1px rgba(34, 211, 238, 0.1);
+}
+body[data-theme="neon"] .bal.me {
+  border-color: rgba(236, 72, 153, 0.7);
+  box-shadow: 0 0 22px rgba(236, 72, 153, 0.35),
+              inset 0 0 0 1px rgba(236, 72, 153, 0.45);
+}
+body[data-theme="neon"] .bal .name .me-badge {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff;
+}
+body[data-theme="neon"] .bal.win .amount  { color: #22d3ee; text-shadow: 0 0 8px rgba(34,211,238,0.5); }
+body[data-theme="neon"] .bal.lose .amount { color: #ec4899; text-shadow: 0 0 8px rgba(236,72,153,0.4); }
+body[data-theme="neon"] button.mega {
+  box-shadow: 0 0 28px rgba(236, 72, 153, 0.5), 0 6px 18px rgba(0,0,0,0.5);
+}
+body[data-theme="neon"] .topbar .title {
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+body[data-theme="neon"] .toast {
+  background: rgba(20, 20, 32, 0.95);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.25);
 }
