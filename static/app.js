@@ -520,23 +520,6 @@ function renderSession(s) {
     showPickMe(s);
   };
 
-  const btnEnd = $("#btn-end");
-  btnEnd.textContent = s.ended_at ? "重开" : "结束";
-  btnEnd.onclick = async () => {
-    if (s.ended_at) {
-      await api(`/api/sessions/${s.id}/reopen`, { method: "POST" });
-    } else {
-      if (!confirm("结束本牌局？随时可重开。")) return;
-      await api(`/api/sessions/${s.id}/end`, { method: "POST" });
-      // auto-show settlement after end
-      const fresh = await api(`/api/sessions/${s.id}`);
-      state.data = fresh;
-      renderSession(fresh);
-      openSettlement(fresh);
-      return;
-    }
-    refreshOnce();
-  };
   $("#btn-settle").onclick = () => openSettlement(s);
 
   // Balances — diamond layout if my seat known
