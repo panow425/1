@@ -53,14 +53,21 @@ button { font-family: inherit; }
 .topbar {
   position: sticky; top: 0; z-index: 50;
   display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px;
+  padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
   background: rgba(8, 8, 13, 0.7);
   backdrop-filter: saturate(140%) blur(12px);
   -webkit-backdrop-filter: saturate(140%) blur(12px);
   border-bottom: 1px solid var(--line);
 }
 .topbar .actions { display: flex; gap: 4px; }
-.topbar .actions button { padding: 6px 10px; font-size: 14px; border: none; background: transparent; }
+.topbar .actions button {
+  padding: 8px 10px;
+  font-size: 16px;
+  border: none;
+  background: transparent;
+  min-width: 36px;
+  min-height: 36px;
+}
 .topbar .title {
   font-weight: 800; font-size: 18px;
   background: var(--title-grad);

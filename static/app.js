@@ -844,6 +844,16 @@ function openPickModal({ title, choices, withAmount = false, onOk, positions = n
   const isDiamond4 = useDiamond && choices.length === 4;
   if (isDiamond4) grid.classList.add("diamond4");
   else if (useDiamond) grid.classList.add("diamond3");
+
+  // hide OK/cancel and auto-confirm if no extra step (no amount)
+  const autoConfirm = !withAmount;
+  const okBtn = $("#modal-ok", back);
+  const cancelBtn = $("#modal-cancel", back);
+  if (autoConfirm) {
+    // hide the explicit confirm row — single tap on a player triggers the action
+    $(".modal-actions", back).style.display = "none";
+  }
+
   for (const p of choices) {
     const el = document.createElement("div");
     el.className = "pick";
@@ -854,6 +864,13 @@ function openPickModal({ title, choices, withAmount = false, onOk, positions = n
       buzz(10); SoundFx.click();
       $$(".pick", grid).forEach(n => n.classList.remove("selected"));
       el.classList.add("selected");
+      if (autoConfirm) {
+        // brief flash then commit
+        setTimeout(() => {
+          if (back.parentNode) back.remove();
+          onOk(selected, amt);
+        }, 160);
+      }
     };
     grid.appendChild(el);
   }
@@ -889,6 +906,8 @@ function openPickModal({ title, choices, withAmount = false, onOk, positions = n
     close();
     onOk(selected, amt);
   };
+  // tap the dim backdrop to dismiss
+  back.onclick = (e) => { if (e.target === back) close(); };
 }
 
 /* ============================================================
@@ -922,6 +941,7 @@ function openSettlement(s) {
     }
   }
   $("#settle-close", back).onclick = () => back.remove();
+  back.onclick = (e) => { if (e.target === back) back.remove(); };
 }
 
 /* ============================================================
@@ -949,6 +969,7 @@ function openThemeModal() {
     grid.appendChild(el);
   }
   $("#theme-close", back).onclick = () => back.remove();
+  back.onclick = (e) => { if (e.target === back) back.remove(); };
 }
 function previewBg(k) {
   switch (k) {
@@ -1017,6 +1038,7 @@ async function openLoginModal(returnSessionData) {
     if (e.key === "Enter") submit();
   });
   $("#login-cancel", back).onclick = () => back.remove();
+  back.onclick = (e) => { if (e.target === back) back.remove(); };
 }
 
 /* ============================================================
