@@ -497,9 +497,25 @@ function renderSession(s) {
   };
   $("#btn-settle").onclick = () => openSettlement(s);
 
-  // Balances
+  // Balances — diamond layout if my seat known
   const bals = $("#balances");
   bals.innerHTML = "";
+
+  const myBal = s.balances.find(b => b.player_id === state.myPlayerId);
+  const mySeat = myBal ? myBal.seat : null;
+  const useDiamond = mySeat != null;
+  bals.classList.toggle("diamond", useDiamond);
+
+  function relPos(theirSeat) {
+    if (!useDiamond) return null;
+    if (theirSeat === mySeat) return "bottom";
+    const diff = (theirSeat - mySeat + 4) % 4;
+    return diff === 1 ? "right" : diff === 2 ? "top" : "left";
+  }
+  // expose for downstream picker
+  state._relPos = relPos;
+  state._useDiamond = useDiamond;
+
   s.balances.forEach((b, i) => {
     const cls = b.balance > 0 ? "win" : b.balance < 0 ? "lose" : "flat";
     const meCls = b.player_id === state.myPlayerId ? " me" : "";
@@ -547,9 +563,19 @@ function renderSession(s) {
       div.classList.add("bumping");
       setTimeout(() => div.classList.remove("bumping"), 600);
     }
+    if (useDiamond) div.dataset.pos = relPos(b.seat);
+    else div.removeAttribute("data-pos");
     bals.appendChild(div);
     state.prevBalances[b.player_id] = b.balance;
   });
+
+  // table-center decoration for diamond mode
+  if (useDiamond) {
+    const center = document.createElement("div");
+    center.className = "table-center";
+    center.textContent = "🀄";
+    bals.appendChild(center);
+  }
 
   // Amount strip
   const strip = $("#amount-strip");
@@ -593,14 +619,25 @@ function renderSession(s) {
     addHand({ kind: "zimo", winner_id: state.myPlayerId, amount: state.selectedAmount });
   };
 
+  // helper: positions object {pid: "top"|"left"|"right"} for the 3 non-me players
+  function picksWithPositions(excludeMe = true) {
+    if (!useDiamond) return { choices: s.players.filter(p => !excludeMe || p.id !== state.myPlayerId), positions: null };
+    const choices = s.players.filter(p => p.id !== state.myPlayerId);
+    const positions = {};
+    for (const p of choices) positions[p.id] = relPos(p.seat);
+    return { choices, positions };
+  }
+
   for (const g of gangBtns) {
     g.onclick = () => {
       const act = g.dataset.act;
       if (state.myPlayerId == null) { toast("先点上方「选我是哪一家」"); return; }
       if (act === "gang_others_pick") {
+        const { choices, positions } = picksWithPositions(true);
         openPickModal({
           title: "我杠了谁？",
-          choices: s.players.filter(p => p.id !== state.myPlayerId),
+          choices, positions,
+          meLabel: myBal ? myBal.name : "我",
           onOk: (pid) => {
             buzz(30); SoundFx.gang();
             addHand({ kind: "gang_others", winner_id: state.myPlayerId, loser_id: pid });
@@ -614,9 +651,11 @@ function renderSession(s) {
   }
 
   btnOtherWin.onclick = () => {
+    const { choices, positions } = picksWithPositions(true);
     openPickModal({
       title: "谁赢了？",
-      choices: s.players,
+      choices, positions,
+      meLabel: myBal ? myBal.name : "我",
       withAmount: true,
       onOk: (pid, amt) => {
         buzz(30); SoundFx.win();
@@ -721,7 +760,7 @@ async function addHand(body) {
 /* ============================================================
    MODAL: pick winner / payer (+ optional amount)
 ============================================================ */
-function openPickModal({ title, choices, withAmount = false, onOk }) {
+function openPickModal({ title, choices, withAmount = false, onOk, positions = null, meLabel = null }) {
   const tpl = document.getElementById("tpl-modal-pick");
   const node = tpl.content.cloneNode(true);
   document.body.appendChild(node);
@@ -733,16 +772,28 @@ function openPickModal({ title, choices, withAmount = false, onOk }) {
 
   const grid = $("#modal-grid", back);
   grid.innerHTML = "";
+  // diamond3 layout when caller provides positions for all choices
+  const useDiamond = positions && choices.every(p => positions[p.id]);
+  if (useDiamond) grid.classList.add("diamond3");
   for (const p of choices) {
     const el = document.createElement("div");
     el.className = "pick";
     el.textContent = p.name;
+    if (useDiamond) el.dataset.pos = positions[p.id];
     el.onclick = () => {
       selected = p.id;
+      buzz(10); SoundFx.click();
       $$(".pick", grid).forEach(n => n.classList.remove("selected"));
       el.classList.add("selected");
     };
     grid.appendChild(el);
+  }
+  // center "我" marker so the diamond is anchored
+  if (useDiamond) {
+    const me = document.createElement("div");
+    me.className = "me-marker";
+    me.textContent = meLabel || "我";
+    grid.appendChild(me);
   }
 
   if (withAmount) {

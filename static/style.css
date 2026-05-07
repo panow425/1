@@ -202,8 +202,34 @@ button.mega {
   background: transparent; border: 1px solid var(--line); border-radius: 12px;
 }
 
-/* Balances */
+/* Balances - default row */
 .balances { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* Balances - diamond layout (when my seat is known) */
+.balances.diamond {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    ".    top     . "
+    "left center  right"
+    ".    bottom  . ";
+  gap: 6px;
+}
+.balances.diamond .bal[data-pos="top"]    { grid-area: top; }
+.balances.diamond .bal[data-pos="bottom"] { grid-area: bottom; }
+.balances.diamond .bal[data-pos="left"]   { grid-area: left; }
+.balances.diamond .bal[data-pos="right"]  { grid-area: right; }
+.balances.diamond .table-center {
+  grid-area: center;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  opacity: 0.45;
+  user-select: none;
+}
+/* Slightly thinner cards in diamond mode (top/bottom can be wide) */
+.balances.diamond .bal { padding: 10px 6px 12px; }
+.balances.diamond .bal .amount { font-size: 24px; }
 .bal {
   position: relative;
   padding: 12px 8px 14px;
@@ -389,6 +415,23 @@ button.mega {
 .modal-grid .pick.selected {
   background: var(--primary-grad); color: #fff; border-color: transparent;
 }
+/* diamond layout for 3 players (top/left/right) */
+.modal-grid.diamond3 {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+    ".    top     . "
+    "left center  right";
+  margin-bottom: 14px;
+}
+.modal-grid.diamond3 .pick[data-pos="top"]   { grid-area: top; }
+.modal-grid.diamond3 .pick[data-pos="left"]  { grid-area: left; }
+.modal-grid.diamond3 .pick[data-pos="right"] { grid-area: right; }
+.modal-grid.diamond3 .me-marker {
+  grid-area: center;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--muted);
+  opacity: 0.7;
+}
 .modal-actions { display: flex; gap: 8px; margin-top: 10px; }
 .modal-actions button { flex: 1; }
 
@@ -530,33 +573,35 @@ button.mega {
 
 /* --- DOUYIN (default) — already set in :root --- */
 
-/* --- BLACKPINK --- */
+/* --- BLACKPINK ---
+   Official palette: #ffa6fc #ff94e0 #ff76d8 #ff59c7 #000000
+*/
 body[data-theme="bp"] {
   --bg: #000000;
-  --panel: rgba(20, 0, 12, 0.85);
-  --panel-2: rgba(36, 0, 22, 0.75);
-  --line: rgba(255, 0, 128, 0.28);
+  --panel: rgba(15, 0, 10, 0.88);
+  --panel-2: rgba(28, 0, 18, 0.78);
+  --line: rgba(255, 118, 216, 0.28);
   --text: #ffffff;
-  --muted: #d49bbe;
-  --accent-a: #ff0080;
-  --accent-b: #ff5bb0;
-  --accent-c: #ffffff;
-  --gold: #ffb6e1;
-  --green: #ff66c4;
-  --red: #ff0080;
-  --primary-grad: linear-gradient(135deg, #ff0080 0%, #ff5bb0 50%, #ff0080 100%);
-  --title-grad:   linear-gradient(90deg, #ff0080 0%, #ffffff 45%, #ff0080 100%);
-  --hero-grad:    linear-gradient(120deg, #ff0080, #ffffff 45%, #ff5bb0);
-  --bg-blob-1:    radial-gradient(circle at 15% 10%, rgba(255,0,128,0.55), transparent 55%);
-  --bg-blob-2:    radial-gradient(circle at 85% 5%,  rgba(255,91,176,0.30), transparent 55%);
-  --bg-blob-3:    radial-gradient(circle at 50% 100%, rgba(255,0,128,0.45), transparent 60%);
+  --muted: #c98ec0;
+  --accent-a: #ff59c7;   /* primary "BLACKPINK pink" */
+  --accent-b: #ff94e0;   /* secondary */
+  --accent-c: #ffa6fc;   /* light highlight */
+  --gold: #ffa6fc;
+  --green: #ff94e0;
+  --red:   #ff59c7;
+  --primary-grad: linear-gradient(135deg, #ff59c7 0%, #ff94e0 50%, #ffa6fc 100%);
+  --title-grad:   linear-gradient(90deg, #ff59c7 0%, #ffffff 45%, #ff76d8 100%);
+  --hero-grad:    linear-gradient(120deg, #ff59c7, #ffffff 45%, #ffa6fc);
+  --bg-blob-1:    radial-gradient(circle at 15% 10%, rgba(255, 89, 199, 0.55), transparent 55%);
+  --bg-blob-2:    radial-gradient(circle at 85% 5%,  rgba(255, 166, 252, 0.30), transparent 55%);
+  --bg-blob-3:    radial-gradient(circle at 50% 100%, rgba(255, 118, 216, 0.45), transparent 60%);
   --bg-pattern:
-    radial-gradient(circle at 10% 20%, #ff0080 0, #ff0080 2px, transparent 3px),
-    radial-gradient(circle at 80% 70%, #fff 0, #fff 1.5px, transparent 2.5px),
-    radial-gradient(circle at 40% 80%, #ff5bb0 0, #ff5bb0 2px, transparent 3px);
+    radial-gradient(circle at 10% 20%, #ff59c7 0, #ff59c7 2px, transparent 3px),
+    radial-gradient(circle at 80% 70%, #ffa6fc 0, #ffa6fc 1.5px, transparent 2.5px),
+    radial-gradient(circle at 40% 80%, #ff94e0 0, #ff94e0 2px, transparent 3px);
 }
 
-/* Stronger pink glow on cards & buttons */
+/* Pink glow on cards & buttons */
 body[data-theme="bp"] .card,
 body[data-theme="bp"] .modal,
 body[data-theme="bp"] .session-item,
@@ -569,50 +614,54 @@ body[data-theme="bp"] .pd-history-row,
 body[data-theme="bp"] .settle-row,
 body[data-theme="bp"] .hand,
 body[data-theme="bp"] .pick-me-grid .pick {
-  background: linear-gradient(165deg, rgba(40, 0, 24, 0.9), rgba(8, 0, 5, 0.9));
-  border: 1px solid rgba(255, 0, 128, 0.35);
-  box-shadow: 0 4px 18px rgba(255, 0, 128, 0.12), 0 0 0 1px rgba(255, 0, 128, 0.08) inset;
+  background: linear-gradient(165deg, rgba(35, 0, 22, 0.9), rgba(5, 0, 3, 0.92));
+  border: 1px solid rgba(255, 118, 216, 0.32);
+  box-shadow: 0 4px 18px rgba(255, 89, 199, 0.12), 0 0 0 1px rgba(255, 118, 216, 0.06) inset;
 }
 body[data-theme="bp"] .topbar {
-  background: rgba(0, 0, 0, 0.85);
-  border-bottom: 1px solid rgba(255, 0, 128, 0.4);
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid rgba(255, 118, 216, 0.35);
 }
 body[data-theme="bp"] .topbar .title {
-  letter-spacing: 3px; font-style: italic;
-  text-shadow: 0 0 12px rgba(255, 0, 128, 0.5);
+  letter-spacing: 3px; font-style: italic; font-weight: 900;
+  text-shadow: 0 0 14px rgba(255, 118, 216, 0.55);
 }
 body[data-theme="bp"] .sb-name {
-  letter-spacing: 1px; font-style: italic;
+  letter-spacing: 1.2px; font-style: italic;
 }
 body[data-theme="bp"] button.primary {
-  letter-spacing: 1px; font-style: italic;
-  box-shadow: 0 0 24px rgba(255, 0, 128, 0.55), 0 6px 18px rgba(0,0,0,0.4);
+  letter-spacing: 1.2px; font-style: italic;
+  box-shadow: 0 0 24px rgba(255, 118, 216, 0.6), 0 6px 18px rgba(0,0,0,0.5);
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
 }
 body[data-theme="bp"] button.mega {
   border-radius: 18px;
   background:
-    linear-gradient(135deg, #ff0080, #000 45%, #ff0080) padding-box,
-    linear-gradient(135deg, #ff5bb0, #fff, #ff5bb0) border-box;
+    linear-gradient(135deg, #ff59c7, #ff94e0 50%, #ff59c7) padding-box,
+    linear-gradient(135deg, #ffa6fc, #ffffff, #ff76d8) border-box;
   border: 2px solid transparent;
 }
 body[data-theme="bp"] .amount-strip .a.selected {
-  background: linear-gradient(135deg, #ff0080, #ff5bb0);
-  border-color: rgba(255, 91, 176, 0.9);
-  color: #fff;
-  box-shadow: 0 0 22px rgba(255, 0, 128, 0.7), 0 0 0 2px rgba(255, 91, 176, 0.4);
+  background: linear-gradient(135deg, #ff59c7, #ff94e0);
+  border-color: rgba(255, 166, 252, 0.95);
+  color: #ffffff;
+  box-shadow: 0 0 22px rgba(255, 118, 216, 0.7), 0 0 0 2px rgba(255, 166, 252, 0.5);
 }
 body[data-theme="bp"] .amount-strip .a.selected .m { color: rgba(255,255,255,0.85); }
-body[data-theme="bp"] .bal.win .amount  { color: #ff5bb0; }
-body[data-theme="bp"] .bal.lose .amount { color: #ff0080; opacity: 0.7; }
+body[data-theme="bp"] .bal.win .amount  { color: #ff94e0; }
+body[data-theme="bp"] .bal.lose .amount { color: #ff59c7; opacity: 0.55; }
 body[data-theme="bp"] .bal.me {
-  border-color: #ff0080;
-  box-shadow: 0 0 24px rgba(255,0,128,0.45), 0 0 0 2px rgba(255,0,128,0.5) inset;
+  border-color: #ff59c7;
+  box-shadow: 0 0 26px rgba(255, 89, 199, 0.5), 0 0 0 2px rgba(255, 118, 216, 0.55) inset;
+}
+body[data-theme="bp"] .bal .name .me-badge {
+  background: linear-gradient(135deg, #ff59c7, #ffa6fc);
+  color: #000;
 }
 body[data-theme="bp"] .toast {
-  background: linear-gradient(135deg, rgba(40,0,22,0.95), rgba(0,0,0,0.95));
-  border: 1px solid rgba(255,0,128,0.5);
-  box-shadow: 0 0 16px rgba(255,0,128,0.35);
+  background: linear-gradient(135deg, rgba(35, 0, 22, 0.95), rgba(0,0,0,0.95));
+  border: 1px solid rgba(255, 118, 216, 0.5);
+  box-shadow: 0 0 16px rgba(255, 89, 199, 0.35);
 }
 body[data-theme="bp"] .hero-emoji { animation: bp-shimmy 1s ease-in-out infinite; }
 @keyframes bp-shimmy {
@@ -620,8 +669,14 @@ body[data-theme="bp"] .hero-emoji { animation: bp-shimmy 1s ease-in-out infinite
   50%     { transform: rotate(10deg)  scale(1.15); }
 }
 body[data-theme="bp"] .hero-title {
-  letter-spacing: 3px; font-style: italic; font-weight: 900;
+  letter-spacing: 4px; font-style: italic; font-weight: 900;
+  text-transform: uppercase;
 }
+body[data-theme="bp"] .chip-btn {
+  border: 1px solid rgba(255, 118, 216, 0.4);
+  color: #ff94e0;
+}
+body[data-theme="bp"] .streak.win { color: #ff94e0; }
 
 /* --- BADMINTON --- */
 body[data-theme="bad"] {
