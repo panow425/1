@@ -135,26 +135,111 @@ function confetti(burst = 36) {
 /* ============== funny toast ============== */
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-function toastForHand(h, players, isMe) {
+const PHRASES = {
+  // I won zimo
+  zimo_me: [
+    "🔥 牛！+{n}",
+    "🎉 +{n} 到账",
+    "✨ 手感来了 +{n}",
+    "🤑 +{n} 再来一把",
+    "稳如老狗",
+    "今晚我请客",
+    "暴富快乐",
+    "麻将天才说的就是我",
+    "+{n}，开心",
+  ],
+  // I won zimo on a streak
+  zimo_me_streak: [
+    "🔥🔥 连赢 {streak} 把，麻将天才本人",
+    "✨ 我自己看着都怕",
+    "稳如老狗 ×{streak}",
+    "+{n}，连赢 {streak} 把！",
+    "🙏 拜托别让对手投降",
+    "状态来了挡不住",
+  ],
+  // others won zimo (general)
+  zimo_other: [
+    "😭 {who} 又自摸 +{n}",
+    "💸 {who} 自摸 +{n}",
+    "{who} +{n}！",
+    "太好了，我们输了 🙃",
+    "{who} 牌运也太好了",
+    "破防了",
+    "下次借点运气",
+    "{who} 自摸，三家又出血",
+    "{who} 是不是上香了",
+  ],
+  // others won zimo on a streak (the suspicious mode 😄)
+  zimo_other_streak: [
+    "👀 重点关注 {who} 的手",
+    "怎么总是 {who} 在赢，你们不行吗？",
+    "{who} 是麻将天才",
+    "{who} 你别玩了让别人玩",
+    "{who} 是不是开挂了",
+    "麻将之神附体了 🙏",
+    "{who} 已经连赢 {streak} 把，离谱",
+    "{who} 牌堆是不是有问题",
+    "服了，{who} 赢麻了",
+    "{who} 今晚必须请客",
+  ],
+  // gang
+  gang_chagang_me: ["⚡ 我插杠 +3", "💪 插杠！", "+3 拿来", "顺便赚点零花"],
+  gang_angang_me:  ["⚡ 我暗杠 +6", "💪 暗杠 +6", "稳赚 6 块", "暗杠不亏"],
+  gang_others_me:  ["⚡ 我杠了 {who}！+3", "💀 {who} 给我 3 块", "杠出强势", "{who} 倒霉"],
+  gang_chagang_other: ["⚡ {who} 插杠 +3", "{who} 又杠了"],
+  gang_angang_other:  ["⚡ {who} 暗杠 +6", "{who} 暗杠真财迷"],
+  gang_others_other:  ["⚡ {who} 杠了 {loser}", "{loser} 倒霉，被 {who} 杠"],
+  gang_others_iam_loser: ["💀 被 {who} 杠了 -3", "倒霉，给 {who} 3 块", "{who} 你够狠"],
+  // huangzhuang
+  huangzhuang: [
+    "🟡 黄庄，大家都没赢",
+    "🟡 流局了，喘口气",
+    "🟡 没人胡，重新来",
+    "🟡 安全下庄",
+  ],
+};
+
+function fillPhrase(tpl, vars) {
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+}
+
+function toastForHand(h, data, isMe) {
+  const players = data.players;
+  const balances = data.balances || [];
   const byId = Object.fromEntries(players.map(p => [p.id, p.name]));
   const w = byId[h.winner_id];
   const l = byId[h.loser_id];
-  if (h.kind === "huangzhuang")
-    return pickRandom(["🟡 黄庄，喘口气", "🟡 流局了，重新来", "🟡 黄庄，谁也没赢"]);
-  if (h.kind === "zimo") {
-    const total = h.amount * 3;
-    if (isMe) return pickRandom([
-      `🔥 牛！+${total}`, `🎉 +${total} 到账`, `✨ 自摸 +${total}，手感来了`,
-      `🤑 +${total}，再来一把`,
-    ]);
-    return pickRandom([
-      `😭 ${w} 又自摸 +${total}`, `💸 ${w} 自摸 +${total}`,
-      `🎉 ${w} 自摸了 +${total}`, `😱 ${w} +${total}！`,
-    ]);
+  const winnerBal = balances.find(b => b.player_id === h.winner_id);
+  const winnerStreak = winnerBal?.streak?.kind === "win" ? winnerBal.streak.count : 0;
+
+  if (h.kind === "huangzhuang") {
+    return pickRandom(PHRASES.huangzhuang);
   }
-  if (h.kind === "gang_chagang") return isMe ? `⚡ 我插杠 +3` : `⚡ ${w} 插杠 +3`;
-  if (h.kind === "gang_angang")  return isMe ? `⚡ 我暗杠 +6` : `⚡ ${w} 暗杠 +6`;
-  if (h.kind === "gang_others")  return isMe ? `⚡ 我杠了 ${l}！+3` : `⚡ ${w} 杠了 ${l}`;
+  if (h.kind === "zimo") {
+    const n = h.amount * 3;
+    let pool;
+    if (isMe) {
+      pool = winnerStreak >= 2 ? PHRASES.zimo_me_streak : PHRASES.zimo_me;
+    } else {
+      pool = winnerStreak >= 2 ? PHRASES.zimo_other_streak : PHRASES.zimo_other;
+    }
+    return fillPhrase(pickRandom(pool), { who: w, n, streak: winnerStreak });
+  }
+  if (h.kind === "gang_chagang") {
+    return fillPhrase(pickRandom(isMe ? PHRASES.gang_chagang_me : PHRASES.gang_chagang_other), { who: w });
+  }
+  if (h.kind === "gang_angang") {
+    return fillPhrase(pickRandom(isMe ? PHRASES.gang_angang_me : PHRASES.gang_angang_other), { who: w });
+  }
+  if (h.kind === "gang_others") {
+    if (isMe) {
+      return fillPhrase(pickRandom(PHRASES.gang_others_me), { who: l });
+    }
+    if (h.loser_id === state.myPlayerId) {
+      return fillPhrase(pickRandom(PHRASES.gang_others_iam_loser), { who: w });
+    }
+    return fillPhrase(pickRandom(PHRASES.gang_others_other), { who: w, loser: l });
+  }
   return "";
 }
 
@@ -307,7 +392,7 @@ function startPolling() {
       if (prevIds.size > 0) {
         for (const h of newOnes.reverse()) {
           const isMe = h.winner_id === state.myPlayerId;
-          toast(toastForHand(h, data.players, isMe));
+          toast(toastForHand(h, data, isMe));
         }
       }
       state.lastSeenHandIds = currIds;
@@ -479,6 +564,16 @@ function renderSession(s) {
   };
 
   // Hands list
+  const handCountEl = $("#hand-count");
+  if (handCountEl) handCountEl.textContent = s.hands.length;
+  // wire up collapse toggle once
+  const histCard = $("#hist-card");
+  const histHead = $("#hist-head");
+  if (histCard && histHead && !histHead.dataset.bound) {
+    histHead.dataset.bound = "1";
+    histHead.onclick = () => histCard.classList.toggle("open");
+  }
+
   const hands = $("#hands");
   hands.innerHTML = "";
   if (!s.hands.length) {

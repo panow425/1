@@ -61,29 +61,24 @@
 
   <!-- ============== SESSION ============== -->
   <template id="tpl-session">
-    <section class="page">
-      <div class="card session-head">
-        <div class="head-left">
-          <div class="head-name" id="s-name"></div>
-          <div class="muted small" id="s-meta"></div>
+    <section class="page compact">
+      <div class="session-bar">
+        <div class="sb-left">
+          <div class="sb-name" id="s-name"></div>
+          <div class="sb-meta" id="s-meta"></div>
         </div>
-        <div class="head-right">
-          <button id="btn-settle" class="ghost">结算</button>
-          <button id="btn-end" class="ghost">结束</button>
+        <div class="sb-right">
+          <button id="btn-settle" class="chip-btn">💸 结算</button>
+          <button id="btn-end" class="chip-btn">结束</button>
         </div>
       </div>
 
-      <div class="card balances-card">
-        <div class="card-h-row">
-          <div class="card-h">余额</div>
-          <div class="muted small" id="me-tag"></div>
-        </div>
+      <div class="card slim balances-card">
         <div id="balances" class="balances"></div>
+        <div class="me-line muted small" id="me-tag"></div>
       </div>
 
-      <div id="record-card" class="card record-card">
-        <div class="card-h">记一盘</div>
-
+      <div id="record-card" class="card slim record-card">
         <div class="amount-strip" id="amount-strip"></div>
 
         <button id="btn-zimo" class="primary mega">
@@ -91,38 +86,36 @@
           <span class="big-text">我自摸了！</span>
         </button>
 
-        <div class="row-label">杠</div>
         <div class="gang-row">
           <button class="action gang" data-act="gang_chagang">
-            <span class="lead">插杠</span><span class="sub">三家各 1</span>
+            <span class="lead">插杠</span><span class="sub">+1×3</span>
           </button>
           <button class="action gang" data-act="gang_angang">
-            <span class="lead">暗杠</span><span class="sub">三家各 2</span>
+            <span class="lead">暗杠</span><span class="sub">+2×3</span>
           </button>
           <button class="action gang" data-act="gang_others_pick">
-            <span class="lead">杠别人</span><span class="sub">那人 -3</span>
+            <span class="lead">杠别人</span><span class="sub">+3</span>
           </button>
         </div>
 
-        <div class="row-label">其他</div>
         <div class="other-row">
-          <button id="btn-other-win" class="action">
-            <span class="lead">别人赢了</span>
-            <span class="sub">手动选赢家</span>
+          <button id="btn-other-win" class="action mini">
+            <span class="lead">别人赢</span>
           </button>
-          <button id="btn-huang" class="action">
+          <button id="btn-huang" class="action mini">
             <span class="lead">黄庄</span>
-            <span class="sub">流局</span>
           </button>
-          <button id="btn-undo" class="action danger-tint">
-            <span class="lead">撤销</span>
-            <span class="sub">最近一盘</span>
+          <button id="btn-undo" class="action mini danger-tint">
+            <span class="lead">↶ 撤销</span>
           </button>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-h">历史记录</div>
+      <div class="card slim collapsible" id="hist-card">
+        <div class="collap-head" id="hist-head">
+          <span>📜 历史 <span id="hand-count">0</span> 盘</span>
+          <span class="collap-arrow">▾</span>
+        </div>
         <div id="hands" class="hands"></div>
       </div>
     </section>
