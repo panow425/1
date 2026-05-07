@@ -102,6 +102,11 @@ const SoundFx = {
     this.beep(500, 0.06, "triangle", 0.14);
     this.beep(300, 0.07, "triangle", 0.14, 0.06);
   },
+  zinged() {
+    // descending "ouch" — for getting gang-ed
+    this.beep(440, 0.08, "sawtooth", 0.16);
+    this.beep(220, 0.14, "sawtooth", 0.16, 0.08);
+  },
 };
 
 function buzz(ms = 15) {
@@ -596,7 +601,6 @@ function renderSession(s) {
   });
 
   const btnZimo = $("#btn-zimo");
-  const btnHuang = $("#btn-huang");
   const btnUndo = $("#btn-undo");
   const btnOtherWin = $("#btn-other-win");
   const gangBtns = $$(".gang-row .gang");
@@ -643,6 +647,18 @@ function renderSession(s) {
             addHand({ kind: "gang_others", winner_id: state.myPlayerId, loser_id: pid });
           },
         });
+      } else if (act === "zinged_pick") {
+        const { choices, positions } = picksWithPositions(true);
+        openPickModal({
+          title: "谁杠了我？",
+          choices, positions,
+          meLabel: myBal ? myBal.name : "我",
+          onOk: (pid) => {
+            buzz(30); SoundFx.zinged();
+            // gang_others record: pid is the winner, I'm the loser
+            addHand({ kind: "gang_others", winner_id: pid, loser_id: state.myPlayerId });
+          },
+        });
       } else {
         buzz(30); SoundFx.gang();
         addHand({ kind: act, winner_id: state.myPlayerId });
@@ -662,12 +678,6 @@ function renderSession(s) {
         addHand({ kind: "zimo", winner_id: pid, amount: amt });
       },
     });
-  };
-
-  btnHuang.onclick = () => {
-    if (!confirm("记一盘黄庄（流局，不计分）？")) return;
-    buzz(20); SoundFx.huang();
-    addHand({ kind: "huangzhuang" });
   };
 
   btnUndo.onclick = async () => {

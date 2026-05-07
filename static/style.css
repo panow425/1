@@ -332,20 +332,25 @@ button.mega {
 .row-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .row-label.center { text-align: center; }
 
-.gang-row, .other-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.gang-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.other-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .action {
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 14px 8px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   text-align: center;
 }
-.action .lead { font-weight: 800; font-size: 15px; }
+.action .lead { font-weight: 800; font-size: 14px; }
 .action .sub { color: var(--muted); font-size: 11px; }
 .action.mini { padding: 12px 6px; }
 .action.mini .lead { font-size: 14px; }
 .action.gang { border-color: rgba(177,75,255,0.25); background: linear-gradient(160deg, rgba(177,75,255,0.10), var(--panel-2)); }
+.action.gang.lose-tint {
+  border-color: rgba(255,77,109,0.45);
+  background: linear-gradient(160deg, rgba(255,77,109,0.12), var(--panel-2));
+}
 .action.danger-tint { border-color: rgba(255,77,109,0.3); }
 
 /* Collapsible card */
