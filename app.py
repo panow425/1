@@ -74,7 +74,6 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_hands_session ON hands(session_id, id);
             """
         )
-        # Best-effort migration: add loser_id if older schema is missing it.
         cols = {r[1] for r in conn.execute("PRAGMA table_info(hands)").fetchall()}
         if "loser_id" not in cols:
             conn.execute("ALTER TABLE hands ADD COLUMN loser_id INTEGER")
@@ -98,16 +97,30 @@ def players_for_session(db, session_id):
     return [{"id": r["id"], "seat": r["seat"], "name": r["name"]} for r in rows]
 
 
-def compute_balances(db, session_id):
+def hand_outcome_for(player_id, hand):
+    """Return 'win' / 'lose' / 'neutral' for this player on this hand."""
+    kind = hand["kind"]
+    if kind == "huangzhuang":
+        return "neutral"
+    if hand["winner_id"] == player_id:
+        return "win"
+    if kind == "gang_others":
+        return "lose" if hand["loser_id"] == player_id else "neutral"
+    # zimo / gang_chagang / gang_angang: all 3 non-winners lose
+    return "lose"
+
+
+def compute_balances_and_streaks(db, session_id):
     players = players_for_session(db, session_id)
     balances = {p["id"]: 0 for p in players}
 
-    hands = db.execute(
-        "SELECT kind, amount, winner_id, loser_id FROM hands WHERE session_id = ?",
+    hands_asc = db.execute(
+        "SELECT kind, amount, winner_id, loser_id FROM hands "
+        "WHERE session_id = ? ORDER BY id ASC",
         (session_id,),
     ).fetchall()
 
-    for h in hands:
+    for h in hands_asc:
         kind = h["kind"]
         winner = h["winner_id"]
         amt = h["amount"]
@@ -128,15 +141,67 @@ def compute_balances(db, session_id):
                 balances[p["id"]] -= amt
                 balances[winner] += amt
 
+    # streaks: walk hands in reverse for each player
+    hands_desc = list(reversed(hands_asc))
+    streaks = {}
+    for p in players:
+        kind, count = None, 0
+        for h in hands_desc:
+            outcome = hand_outcome_for(p["id"], h)
+            if outcome == "neutral":
+                continue
+            if kind is None:
+                kind = outcome
+                count = 1
+            elif outcome == kind:
+                count += 1
+            else:
+                break
+        streaks[p["id"]] = {"kind": kind or "none", "count": count}
+
     return [
         {
             "player_id": p["id"],
             "seat": p["seat"],
             "name": p["name"],
             "balance": balances.get(p["id"], 0),
+            "streak": streaks[p["id"]],
         }
         for p in players
     ]
+
+
+def compute_settlement(balances):
+    """Greedy: largest debtor pays largest creditor."""
+    creditors = sorted(
+        [{"id": b["player_id"], "name": b["name"], "amount": b["balance"]}
+         for b in balances if b["balance"] > 0],
+        key=lambda x: -x["amount"],
+    )
+    debtors = sorted(
+        [{"id": b["player_id"], "name": b["name"], "amount": -b["balance"]}
+         for b in balances if b["balance"] < 0],
+        key=lambda x: -x["amount"],
+    )
+
+    transfers = []
+    i = j = 0
+    while i < len(debtors) and j < len(creditors):
+        d, c = debtors[i], creditors[j]
+        amt = min(d["amount"], c["amount"])
+        if amt > 0:
+            transfers.append({
+                "from_id": d["id"], "from": d["name"],
+                "to_id": c["id"], "to": c["name"],
+                "amount": amt,
+            })
+        d["amount"] -= amt
+        c["amount"] -= amt
+        if d["amount"] == 0:
+            i += 1
+        if c["amount"] == 0:
+            j += 1
+    return transfers
 
 
 @app.route("/")
@@ -174,7 +239,7 @@ def api_list_sessions():
 
 @app.post("/api/sessions")
 def api_create_session():
-    data = request.get_json(force=True) or {}
+    data = request.get_json(silent=True) or {}
     raw_names = data.get("players") or DEFAULT_PLAYERS
     names = [str(n).strip() or DEFAULT_PLAYERS[i] for i, n in enumerate(raw_names)]
     if len(names) != 4:
@@ -182,7 +247,7 @@ def api_create_session():
 
     name = (data.get("name") or "").strip()
     if not name:
-        name = datetime.now().strftime("%Y-%m-%d %H:%M") + " 牌局"
+        name = datetime.now().strftime("%m-%d %H:%M")
 
     db = get_db()
     cur = db.execute(
@@ -210,7 +275,8 @@ def api_get_session(sid):
         return jsonify({"error": "未找到牌局"}), 404
     s = session_to_dict(row)
     s["players"] = players_for_session(db, sid)
-    s["balances"] = compute_balances(db, sid)
+    s["balances"] = compute_balances_and_streaks(db, sid)
+    s["settlement"] = compute_settlement(s["balances"])
     s["hands"] = [
         {
             "id": h["id"],
@@ -230,9 +296,44 @@ def api_get_session(sid):
     return jsonify(s)
 
 
+@app.put("/api/sessions/<int:sid>/players/<int:pid>")
+def api_rename_player(sid, pid):
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "名字不能为空"}), 400
+    if len(name) > 12:
+        return jsonify({"error": "名字最多 12 个字"}), 400
+    db = get_db()
+    cur = db.execute(
+        "UPDATE players SET name = ? WHERE id = ? AND session_id = ?",
+        (name, pid, sid),
+    )
+    db.commit()
+    if cur.rowcount == 0:
+        return jsonify({"error": "未找到玩家"}), 404
+    return jsonify({"ok": True})
+
+
+@app.put("/api/sessions/<int:sid>")
+def api_rename_session(sid):
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "名字不能为空"}), 400
+    db = get_db()
+    cur = db.execute(
+        "UPDATE sessions SET name = ? WHERE id = ?", (name, sid)
+    )
+    db.commit()
+    if cur.rowcount == 0:
+        return jsonify({"error": "未找到牌局"}), 404
+    return jsonify({"ok": True})
+
+
 @app.post("/api/sessions/<int:sid>/hands")
 def api_add_hand(sid):
-    data = request.get_json(force=True) or {}
+    data = request.get_json(silent=True) or {}
     kind = data.get("kind", "zimo")
     if kind not in ALL_KINDS:
         return jsonify({"error": "未知的类型"}), 400
@@ -288,7 +389,7 @@ def api_add_hand(sid):
         ),
     )
     db.commit()
-    return jsonify({"ok": True, "balances": compute_balances(db, sid)})
+    return jsonify({"ok": True})
 
 
 @app.delete("/api/sessions/<int:sid>/hands/<int:hid>")
@@ -300,7 +401,7 @@ def api_delete_hand(sid, hid):
     db.commit()
     if cur.rowcount == 0:
         return jsonify({"error": "未找到该盘记录"}), 404
-    return jsonify({"ok": True, "balances": compute_balances(db, sid)})
+    return jsonify({"ok": True})
 
 
 @app.post("/api/sessions/<int:sid>/end")
@@ -310,6 +411,14 @@ def api_end_session(sid):
         "UPDATE sessions SET ended_at = ? WHERE id = ?",
         (datetime.now().isoformat(timespec="seconds"), sid),
     )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/sessions/<int:sid>/reopen")
+def api_reopen_session(sid):
+    db = get_db()
+    db.execute("UPDATE sessions SET ended_at = NULL WHERE id = ?", (sid,))
     db.commit()
     return jsonify({"ok": True})
 

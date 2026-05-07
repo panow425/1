@@ -2,13 +2,18 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0f">
   <title>麻将记分</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <div class="bg-glow"></div>
+
   <header class="topbar">
-    <div class="title">🀄 麻将记分</div>
+    <div class="title" id="topbar-title">🀄 麻将</div>
     <div class="actions">
       <button id="btn-home" class="ghost">主页</button>
     </div>
@@ -16,26 +21,30 @@
 
   <main id="app"></main>
 
+  <div id="toast-stack" class="toast-stack"></div>
+
   <template id="tpl-home">
     <section class="page">
-      <div class="card">
-        <h2>开新局</h2>
-        <label class="row">
-          <span>牌局名称（可选）</span>
-          <input id="new-name" placeholder="例如：周末家庭赛">
-        </label>
-        <div class="grid-4">
-          <label><span>玩家 1</span><input class="new-player" data-i="0"></label>
-          <label><span>玩家 2</span><input class="new-player" data-i="1"></label>
-          <label><span>玩家 3</span><input class="new-player" data-i="2"></label>
-          <label><span>玩家 4</span><input class="new-player" data-i="3"></label>
-        </div>
-        <button id="btn-create" class="primary big">开始牌局</button>
+      <div class="hero">
+        <div class="hero-title">来一局？</div>
+        <div class="hero-sub">点下面，立刻开始</div>
+        <button id="btn-create" class="primary mega">🎰 开新局</button>
       </div>
 
       <div class="card">
-        <h2>历史牌局</h2>
+        <div class="card-h">历史牌局</div>
         <div id="session-list" class="session-list"></div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-pick-me">
+    <section class="page">
+      <div class="card pick-me">
+        <div class="card-h">这台设备是哪一家？</div>
+        <div class="muted small">选一次就好，下次自动认你</div>
+        <div id="pick-me-grid" class="pick-me-grid"></div>
+        <button id="pick-me-skip" class="ghost wide">跳过 / 我只是围观</button>
       </div>
     </section>
   </template>
@@ -43,57 +52,101 @@
   <template id="tpl-session">
     <section class="page">
       <div class="card session-head">
-        <div>
-          <h2 id="s-name"></h2>
-          <div class="muted" id="s-meta"></div>
+        <div class="head-left">
+          <div class="head-name" id="s-name"></div>
+          <div class="muted small" id="s-meta"></div>
         </div>
-        <div class="head-actions">
-          <button id="btn-end" class="ghost">结束牌局</button>
+        <div class="head-right">
+          <button id="btn-settle" class="ghost">结算</button>
+          <button id="btn-end" class="ghost">结束</button>
         </div>
       </div>
 
-      <div class="card">
-        <h3>当前余额</h3>
+      <div class="card balances-card">
+        <div class="card-h-row">
+          <div class="card-h">余额</div>
+          <div class="muted small" id="me-tag"></div>
+        </div>
         <div id="balances" class="balances"></div>
       </div>
 
-      <div class="card">
-        <h3>记一盘</h3>
+      <div id="record-card" class="card record-card">
+        <div class="card-h">记一盘</div>
 
-        <div class="label">谁赢的 / 杠的</div>
-        <div id="winner-pick" class="picker"></div>
+        <div class="amount-strip" id="amount-strip"></div>
 
-        <div class="label">怎么赢 / 杠</div>
-        <div id="kind-pick" class="picker kinds">
-          <div class="pick" data-kind="zimo">自摸</div>
-          <div class="pick" data-kind="gang_chagang">插杠 (各 1)</div>
-          <div class="pick" data-kind="gang_angang">暗杠 (各 2)</div>
-          <div class="pick" data-kind="gang_others">杠别人 (3)</div>
+        <button id="btn-zimo" class="primary mega">
+          <span class="big-emoji">🎉</span>
+          <span class="big-text">我自摸了！</span>
+        </button>
+
+        <div class="row-label">杠</div>
+        <div class="gang-row">
+          <button class="action gang" data-act="gang_chagang">
+            <span class="lead">插杠</span><span class="sub">三家各 1</span>
+          </button>
+          <button class="action gang" data-act="gang_angang">
+            <span class="lead">暗杠</span><span class="sub">三家各 2</span>
+          </button>
+          <button class="action gang" data-act="gang_others_pick">
+            <span class="lead">杠别人</span><span class="sub">那人 -3</span>
+          </button>
         </div>
 
-        <div id="amount-row" class="hidden">
-          <div class="label">金额（块）</div>
-          <div id="amount-pick" class="picker amounts"></div>
-        </div>
-
-        <div id="payer-row" class="hidden">
-          <div class="label">谁给的杠</div>
-          <div id="payer-pick" class="picker"></div>
-        </div>
-
-        <div class="hint" id="hand-hint"></div>
-
-        <div class="hand-actions">
-          <button id="btn-huang" class="ghost">黄庄（流局）</button>
-          <button id="btn-record" class="primary big">记录这一盘</button>
+        <div class="row-label">其他</div>
+        <div class="other-row">
+          <button id="btn-other-win" class="action">
+            <span class="lead">别人赢了</span>
+            <span class="sub">手动选赢家</span>
+          </button>
+          <button id="btn-huang" class="action">
+            <span class="lead">黄庄</span>
+            <span class="sub">流局</span>
+          </button>
+          <button id="btn-undo" class="action danger-tint">
+            <span class="lead">撤销</span>
+            <span class="sub">最近一盘</span>
+          </button>
         </div>
       </div>
 
       <div class="card">
-        <h3>历史记录</h3>
+        <div class="card-h">历史记录</div>
         <div id="hands" class="hands"></div>
       </div>
     </section>
+  </template>
+
+  <!-- Modal: pick payer (杠别人 / 别人赢了) -->
+  <template id="tpl-modal-pick">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-h" id="modal-title">选一个</div>
+        <div id="modal-grid" class="modal-grid"></div>
+        <div id="modal-amount" class="hidden">
+          <div class="row-label center">金额</div>
+          <div class="amount-strip" id="modal-amount-strip"></div>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-cancel" class="ghost">取消</button>
+          <button id="modal-ok" class="primary">确定</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Modal: settlement -->
+  <template id="tpl-modal-settle">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-h">💸 结算</div>
+        <div id="settle-summary" class="settle-summary"></div>
+        <div id="settle-list" class="settle-list"></div>
+        <div class="modal-actions single">
+          <button id="settle-close" class="primary">收起</button>
+        </div>
+      </div>
+    </div>
   </template>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
