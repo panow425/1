@@ -6,6 +6,7 @@ const SEAT_NAMES = ["东", "南", "西", "北"];
 
 const THEMES = [
   { key: "neon",    name: "霓光黑", emoji: "🌃", title: "🌃 麻将",    hero: "🀄", heroTitle: "霓光夜局",       heroSub: "赛博朋克 · 麻将" },
+  { key: "luxe",    name: "Luxe 留白", emoji: "❖", title: "❖  麻将",  hero: "🀄", heroTitle: "Quiet Mahjong",  heroSub: "极简 · 留白 · 仪式感" },
   { key: "green",   name: "自然绿", emoji: "🌿", title: "🌿 麻将",    hero: "🀄", heroTitle: "搓一把",         heroSub: "正宗中国风" },
   { key: "bamboo",  name: "竹韵绿", emoji: "🎋", title: "🎋 麻将",    hero: "🎋", heroTitle: "竹影摇曳",       heroSub: "清新如新茶" },
   { key: "purple",  name: "暮夜紫", emoji: "🌌", title: "🌌 麻将",    hero: "🏮", heroTitle: "灯火夜",         heroSub: "千灯映夜" },
@@ -120,7 +121,7 @@ function buzz(ms = 15) {
   }
 }
 
-const LIGHT_CARD_THEMES = new Set(["green", "bamboo", "orange"]);
+const LIGHT_CARD_THEMES = new Set(["green", "bamboo", "orange", "luxe"]);
 
 function applyTheme(key) {
   const t = THEMES.find(x => x.key === key) || THEMES[0];
@@ -272,6 +273,25 @@ const PHRASES = {
     "🟡 没人胡，重新来",
     "🟡 安全下庄",
   ],
+  // 跟庄
+  genzhuang_iam_loser: [
+    "💀 我跟庄了 -3",
+    "倒霉，跟庄罚 3 块",
+    "起手就翻车",
+    "跟庄送钱 -3",
+  ],
+  genzhuang_other_loser: [
+    "💸 {who} 跟庄 -3",
+    "{who} 起手就送钱",
+    "{who} 跟庄了，三家各 +1",
+    "{who} 翻车了",
+  ],
+  genzhuang_iam_winner: [
+    "🤑 {who} 跟庄，我 +1",
+    "天降一块",
+    "白嫖 +1",
+    "{who} 送的，谢谢",
+  ],
 };
 
 function fillPhrase(tpl, vars) {
@@ -289,6 +309,15 @@ function toastForHand(h, data, isMe) {
 
   if (h.kind === "huangzhuang") {
     return pickRandom(PHRASES.huangzhuang);
+  }
+  if (h.kind === "genzhuang") {
+    if (h.loser_id === state.myPlayerId) {
+      return fillPhrase(pickRandom(PHRASES.genzhuang_iam_loser), {});
+    }
+    if (state.myPlayerId != null) {
+      return fillPhrase(pickRandom(PHRASES.genzhuang_iam_winner), { who: l });
+    }
+    return fillPhrase(pickRandom(PHRASES.genzhuang_other_loser), { who: l });
   }
   if (h.kind === "zimo") {
     const n = h.amount * 3;
@@ -611,6 +640,7 @@ function renderSession(s) {
   const btnZimo = $("#btn-zimo");
   const btnUndo = $("#btn-undo");
   const btnOtherWin = $("#btn-other-win");
+  const btnGenzhuang = $("#btn-genzhuang");
   const gangBtns = $$(".gang-row .gang");
 
   const recordCard = $("#record-card");
@@ -634,7 +664,9 @@ function renderSession(s) {
   // helper: positions object {pid: "top"|"left"|"right"} for the 3 non-me players
   function picksWithPositions(excludeMe = true) {
     if (!useDiamond) return { choices: s.players.filter(p => !excludeMe || p.id !== state.myPlayerId), positions: null };
-    const choices = s.players.filter(p => p.id !== state.myPlayerId);
+    const choices = excludeMe
+      ? s.players.filter(p => p.id !== state.myPlayerId)
+      : s.players.slice();
     const positions = {};
     for (const p of choices) positions[p.id] = relPos(p.seat);
     return { choices, positions };
@@ -688,6 +720,19 @@ function renderSession(s) {
     });
   };
 
+  btnGenzhuang.onclick = () => {
+    if (state.myPlayerId == null) { toast("先点上方「选我是哪一家」"); return; }
+    const { choices, positions } = picksWithPositions(false);
+    openPickModal({
+      title: "跟庄是谁？",
+      choices, positions,
+      onOk: (pid) => {
+        buzz(25); SoundFx.zinged();
+        addHand({ kind: "genzhuang", loser_id: pid });
+      },
+    });
+  };
+
   btnUndo.onclick = async () => {
     if (!lastHand) { toast("还没有可撤销的记录"); return; }
     if (!confirm("撤销最近一盘？")) return;
@@ -737,6 +782,10 @@ function renderSession(s) {
       div.className = "hand gang";
       title = `<span class="winner">${escape(w?.name || "?")}</span> 杠 ${escape(l?.name || "?")}`;
       detail = `${escape(l?.name || "?")} 给 3`; amt = `+3`;
+    } else if (h.kind === "genzhuang") {
+      div.className = "hand gang";
+      title = `<span class="winner">${escape(l?.name || "?")}</span> 跟庄`;
+      detail = `三家各 +1`; amt = `-3`;
     }
     div.innerHTML = `
       <div class="left">
@@ -790,9 +839,11 @@ function openPickModal({ title, choices, withAmount = false, onOk, positions = n
 
   const grid = $("#modal-grid", back);
   grid.innerHTML = "";
-  // diamond3 layout when caller provides positions for all choices
+  // diamond layout when caller provides positions for all choices
   const useDiamond = positions && choices.every(p => positions[p.id]);
-  if (useDiamond) grid.classList.add("diamond3");
+  const isDiamond4 = useDiamond && choices.length === 4;
+  if (isDiamond4) grid.classList.add("diamond4");
+  else if (useDiamond) grid.classList.add("diamond3");
   for (const p of choices) {
     const el = document.createElement("div");
     el.className = "pick";
@@ -806,8 +857,8 @@ function openPickModal({ title, choices, withAmount = false, onOk, positions = n
     };
     grid.appendChild(el);
   }
-  // center "我" marker so the diamond is anchored
-  if (useDiamond) {
+  // center "我" marker only in diamond3 (3 choices, anchor the layout)
+  if (useDiamond && !isDiamond4) {
     const me = document.createElement("div");
     me.className = "me-marker";
     me.textContent = meLabel || "我";
@@ -902,6 +953,7 @@ function openThemeModal() {
 function previewBg(k) {
   switch (k) {
     case "neon":   return "linear-gradient(135deg, #ec4899, #a855f7 50%, #22d3ee)";
+    case "luxe":   return "linear-gradient(135deg, #faf7f2 0%, #ffffff 50%, #b8956f 100%)";
     case "green":  return "linear-gradient(180deg, #2a8a4a 0%, #1d4f3a 100%)";
     case "bamboo": return "linear-gradient(180deg, #c8dcb8 0%, #8fbb70 100%)";
     case "purple": return "linear-gradient(180deg, #4c3a78 0%, #2d1f47 100%)";

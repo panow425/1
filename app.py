@@ -20,7 +20,7 @@ GANG_FIXED = {
     "gang_angang": 2,
     "gang_others": 3,
 }
-ALL_KINDS = {"zimo", "huangzhuang", *GANG_FIXED.keys()}
+ALL_KINDS = {"zimo", "huangzhuang", "genzhuang", *GANG_FIXED.keys()}
 
 app = Flask(__name__)
 
@@ -137,6 +137,8 @@ def hand_outcome_for(player_id, hand):
     kind = hand["kind"]
     if kind == "huangzhuang":
         return "neutral"
+    if kind == "genzhuang":
+        return "lose" if hand["loser_id"] == player_id else "win"
     if hand["winner_id"] == player_id:
         return "win"
     if kind == "gang_others":
@@ -174,6 +176,16 @@ def compute_balances_and_streaks(db, session_id):
                     continue
                 balances[p["id"]] -= amt
                 balances[winner] += amt
+        elif kind == "genzhuang":
+            # 跟庄: loser pays 1 to each of 3 others
+            loser = h["loser_id"]
+            if loser is None:
+                continue
+            for p in players:
+                if p["id"] == loser:
+                    balances[p["id"]] -= amt * 3
+                else:
+                    balances[p["id"]] += amt
 
     hands_desc = list(reversed(hands_asc))
     streaks = {}
@@ -478,6 +490,11 @@ def api_add_hand(sid):
         amount = 0
         winner_id = None
         loser_id = None
+    elif kind == "genzhuang":
+        if loser_id not in player_ids:
+            return jsonify({"error": "请选择跟庄的人"}), 400
+        amount = 1
+        winner_id = None
     elif kind in GANG_FIXED:
         if winner_id not in player_ids:
             return jsonify({"error": "请选择是谁杠的"}), 400
